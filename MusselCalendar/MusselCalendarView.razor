@@ -1,0 +1,115 @@
+@implements IAsyncDisposable
+
+<div @ref="element" @attributes="AdditionalAttributes" class="@RootClass" data-slot="@SlotMinutes" data-hour-height="@HourHeight" data-default-minutes="@DefaultMinutes" style="@RootStyle">
+    @if (View == CalendarViewKind.Month)
+    {
+        <div class="mc-month">
+            <div class="mc-month-head">
+                @for (var i = 0; i < 7; i++)
+                {
+                    <div class="mc-weekday">@WeekdayName(range.Start.AddDays(i))</div>
+                }
+            </div>
+            <div class="mc-weeks" style="--mc-weeks: @weeks.Count">
+                @foreach (var week in weeks)
+                {
+                    <div class="mc-week" style="--mc-lanes: @MonthLanes">
+                        @for (var i = 0; i < 7; i++)
+                        {
+                            var day = week.Start.AddDays(i);
+                            <div class="@MonthCellClass(day)" data-date="@IsoDate(day)" style="grid-column: @(i + 1)">
+                                <button type="button" class="mc-date" aria-label="@DayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@MonthDateText(day)</button>
+                            </div>
+                        }
+                        @foreach (var bar in week.Bars)
+                        {
+                            <div class="@MonthBarClass(bar)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 1, 2)">
+                                @if (IsChip(bar))
+                                {
+                                    <span class="mc-dot"></span>
+                                    <span class="mc-bar-time">@TimeText(bar.Item.Start)</span>
+                                }
+                                <span class="mc-bar-title">@bar.Item.Title</span>
+                            </div>
+                        }
+                        @for (var i = 0; i < 7; i++)
+                        {
+                            var day = week.Start.AddDays(i);
+                            var count = week.More[i];
+                            if (count > 0)
+                            {
+                                <button type="button" class="mc-more" style="grid-column: @(i + 1); grid-row: @(MonthLanes + 1)" @onclick="e => OnMoreClick(day, e)">@MoreText(count)</button>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="mc-timegrid" style="--mc-days: @range.Days">
+            <div class="mc-head">
+                <div></div>
+                @for (var i = 0; i < range.Days; i++)
+                {
+                    var day = range.Start.AddDays(i);
+                    <div class="@DayHeadClass(day)">
+                        <span class="mc-weekday">@WeekdayName(day)</span>
+                        <button type="button" class="mc-date" aria-label="@DayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
+                    </div>
+                }
+            </div>
+            <div class="mc-allday" style="--mc-lanes: @Math.Max(allDayLanes, 1)">
+                <div class="mc-allday-label">@AllDayText</div>
+                @for (var i = 0; i < range.Days; i++)
+                {
+                    <div class="mc-cell mc-allday-cell" data-date="@IsoDate(range.Start.AddDays(i))" style="grid-column: @(i + 2)"></div>
+                }
+                @foreach (var bar in allDayBars)
+                {
+                    <div class="@BarClass(bar)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
+                        <span class="mc-bar-title">@bar.Item.Title</span>
+                    </div>
+                }
+            </div>
+            <div class="mc-body">
+                <div class="mc-times">
+                    @for (var hour = 1; hour < 24; hour++)
+                    {
+                        <div class="mc-time" style="top: @(hour * HourHeight)px">@HourText(hour)</div>
+                    }
+                </div>
+                <div class="mc-columns">
+                    @for (var i = 0; i < range.Days; i++)
+                    {
+                        var index = i;
+                        var day = range.Start.AddDays(i);
+                        <div class="mc-column" data-date="@IsoDate(day)">
+                            @foreach (var segment in timed)
+                            {
+                                if (segment.Day != index)
+                                {
+                                    continue;
+                                }
+
+                                <div class="@EventClass(segment)" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
+                                    <span class="mc-event-title">@segment.Item.Title</span>
+                                    <span class="mc-event-time">@TimeText(segment.Item.Start) – @TimeText(segment.Item.End)</span>
+                                    @if (segment.IsEnd && !segment.Item.ReadOnly)
+                                    {
+                                        <span class="mc-resize"></span>
+                                    }
+                                </div>
+                            }
+                            @if (day == today)
+                            {
+                                <div class="mc-now" style="top: @NowTop()px"></div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>

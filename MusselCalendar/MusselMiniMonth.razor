@@ -1,0 +1,22 @@
+<div @attributes="AdditionalAttributes" class="@RootClass">
+    <div class="mm-header">
+        <span class="mm-title">@month.ToString("Y", FormatCulture)</span>
+        <button type="button" class="mm-nav" aria-label="@PreviousText" @onclick="() => Shift(-1)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z" /></svg>
+        </button>
+        <button type="button" class="mm-nav" aria-label="@NextText" @onclick="() => Shift(1)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z" /></svg>
+        </button>
+    </div>
+    <div class="mm-grid">
+        @for (var i = 0; i < 7; i++)
+        {
+            <div class="mm-weekday">@FormatCulture.DateTimeFormat.GetShortestDayName((DayOfWeek)(((int)FirstDayOfWeek + i) % 7))</div>
+        }
+        @for (var day = Start; day < Start.AddDays(42); day = day.AddDays(1))
+        {
+            var current = day;
+            <button type="button" class="@DayClass(current)" aria-label="@current.ToString("D", FormatCulture)" @onclick="() => DateChanged.InvokeAsync(current)">@current.Day</button>
+        }
+    </div>
+</div>
