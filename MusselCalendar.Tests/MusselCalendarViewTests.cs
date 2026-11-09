@@ -242,6 +242,104 @@ public sealed class MusselCalendarViewTests : BunitContext
         Assert.Equal("+2", cut.Find(".mc-more").TextContent);
     }
 
+    [Fact]
+    public void ScheduleListsDaysWithItems()
+    {
+        var thursday = Thursday.ToDateTime(TimeOnly.MinValue);
+        CalendarItem[] items =
+        [
+            Item("meeting", 10, 11),
+            new() { Id = "trip", Title = "trip", Start = thursday, End = thursday.AddDays(2), AllDay = true },
+            new() { Id = "night", Title = "night", Start = thursday.AddHours(22), End = thursday.AddHours(26) }
+        ];
+
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Schedule)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+
+        var days = cut.FindAll(".mc-schedule-day");
+        Assert.Equal(2, days.Count);
+        Assert.Equal(["trip", "meeting", "night"], days[0].QuerySelectorAll(".mc-schedule-title").Select(static x => x.TextContent));
+        Assert.Equal(["All day", "10:00 – 11:00", "22:00 –"], days[0].QuerySelectorAll(".mc-schedule-time").Select(static x => x.TextContent));
+        Assert.Equal(["trip", "night"], days[1].QuerySelectorAll(".mc-schedule-title").Select(static x => x.TextContent));
+        Assert.Equal(["All day", "– 2:00"], days[1].QuerySelectorAll(".mc-schedule-time").Select(static x => x.TextContent));
+        Assert.Equal("Nov, Fri", days[1].QuerySelector(".mc-schedule-day-text")?.TextContent);
+    }
+
+    [Fact]
+    public void ScheduleShowsEmptyText()
+    {
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Schedule)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.EmptyText, "Nothing"));
+
+        Assert.Equal("Nothing", cut.Find(".mc-schedule-empty").TextContent);
+        Assert.Empty(cut.FindAll(".mc-schedule-day"));
+    }
+
+    [Fact]
+    public void YearMarksDaysWithItems()
+    {
+        var thursday = Thursday.ToDateTime(TimeOnly.MinValue);
+        CalendarItem[] items =
+        [
+            Item("a", 9, 10),
+            Item("b", 11, 12),
+            new() { Id = "trip", Title = "trip", Start = thursday.AddDays(1), End = thursday.AddDays(3), AllDay = true }
+        ];
+        DateOnly? clicked = null;
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Year)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items)
+            .Add(static p => p.ItemCountFormat, "{0} items")
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture)
+            .Add(static p => p.DayClicked, day => clicked = day));
+
+        Assert.Equal(12, cut.FindAll(".mc-year-month").Count);
+        Assert.Equal(365, cut.FindAll(".mc-year-day").Count);
+        var marked = cut.FindAll(".mc-year-day.mc-marked");
+        Assert.Equal(3, marked.Count);
+        Assert.Equal("Thursday, 12 November 2026, 2 items", marked[0].GetAttribute("aria-label"));
+
+        marked[1].Click();
+
+        Assert.Equal(new DateOnly(2026, 11, 13), clicked);
+    }
+
+    [Fact]
+    public void SecondaryOffsetAddsSecondTimeColumn()
+    {
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture)
+            .Add(static p => p.SecondaryOffset, TimeSpan.FromHours(-9.5))
+            .Add(static p => p.TimeZoneText, "JST")
+            .Add(static p => p.SecondaryTimeZoneText, "UTC"));
+
+        Assert.Contains("mc-dual", cut.Find(".mc-timegrid").ClassList);
+        Assert.Equal(["UTC", "JST"], cut.FindAll(".mc-zones span").Select(static x => x.TextContent));
+        var secondary = cut.FindAll(".mc-time.mc-secondary");
+        Assert.Equal(23, secondary.Count);
+        Assert.Equal("15:30", secondary[0].TextContent);
+        Assert.Equal("0:30", secondary[9].TextContent);
+    }
+
+    [Fact]
+    public void NoSecondaryOffsetKeepsOneTimeColumn()
+    {
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.TimeZoneText, "JST"));
+
+        Assert.DoesNotContain("mc-dual", cut.Find(".mc-timegrid").ClassList);
+        Assert.Empty(cut.FindAll(".mc-zones"));
+        Assert.Empty(cut.FindAll(".mc-time.mc-secondary"));
+    }
+
     private static CalendarItem Item(string id, double startHour, double endHour)
     {
         var start = Thursday.ToDateTime(TimeOnly.MinValue);

@@ -23,6 +23,8 @@ public sealed partial class CalendarPage
 
     private CalendarOverlapMode overlapMode = CalendarOverlapMode.Columns;
 
+    private bool secondary;
+
     private CalendarSelectEventArgs? draft;
 
     private string draftTitle = string.Empty;
@@ -36,6 +38,22 @@ public sealed partial class CalendarPage
     private CalendarRange Range => CalendarRange.Of(view, date, firstDayOfWeek, DayCount);
 
     private List<CalendarItem> VisibleItems => [.. items.Where(x => owners[x.Id].Visible)];
+
+    private TimeSpan LocalOffset => TimeZoneInfo.Local.GetUtcOffset(Range.StartTime);
+
+    private TimeSpan? SecondaryOffset => secondary ? -LocalOffset : null;
+
+    private string LocalZoneText
+    {
+        get
+        {
+            var offset = LocalOffset.Duration();
+            var sign = LocalOffset < TimeSpan.Zero ? "-" : "+";
+            return offset.Minutes == 0
+                ? String.Create(CultureInfo.InvariantCulture, $"UTC{sign}{offset.Hours}")
+                : String.Create(CultureInfo.InvariantCulture, $"UTC{sign}{offset.Hours}:{offset.Minutes:00}");
+        }
+    }
 
     private string Title
     {
@@ -52,8 +70,18 @@ public sealed partial class CalendarPage
                 return date.ToString("yyyy年M月", culture);
             }
 
+            if (view == CalendarViewKind.Year)
+            {
+                return date.ToString("yyyy年", culture);
+            }
+
             var first = Range.Start;
             var last = Range.End.AddDays(-1);
+            if (view == CalendarViewKind.Schedule)
+            {
+                return $"{first.ToString("yyyy年M月d日", culture)} – {last.ToString(first.Year == last.Year ? "M月d日" : "yyyy年M月d日", culture)}";
+            }
+
             if (first.Month == last.Month)
             {
                 return first.ToString("yyyy年M月", culture);
@@ -83,6 +111,8 @@ public sealed partial class CalendarPage
 
     private void OnOverlapChanged(ChangeEventArgs e) =>
         overlapMode = (CalendarOverlapMode)Int32.Parse((string)e.Value!, CultureInfo.InvariantCulture);
+
+    private void OnSecondaryChanged(ChangeEventArgs e) => secondary = (string?)e.Value == "1";
 
     private void OnDayClicked(DateOnly day)
     {

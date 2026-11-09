@@ -37,6 +37,10 @@ public sealed partial class MusselCalendarView
 
     private List<TimedSegment> timed = [];
 
+    private List<ScheduleDay> schedule = [];
+
+    private Dictionary<DateOnly, int> dayCounts = [];
+
     private int allDayLanes;
 
     private int fittedLanes = FallbackLanes;
@@ -92,6 +96,12 @@ public sealed partial class MusselCalendarView
     public string MoreFormat { get; set; } = "+{0}";
 
     [Parameter]
+    public string EmptyText { get; set; } = "No events";
+
+    [Parameter]
+    public string ItemCountFormat { get; set; } = "{0} events";
+
+    [Parameter]
     public string HourFormat { get; set; } = "H:mm";
 
     [Parameter]
@@ -99,6 +109,18 @@ public sealed partial class MusselCalendarView
 
     [Parameter]
     public string MonthDayFormat { get; set; } = "M/d";
+
+    [Parameter]
+    public string ScheduleDayFormat { get; set; } = "MMM, ddd";
+
+    [Parameter]
+    public TimeSpan? SecondaryOffset { get; set; }
+
+    [Parameter]
+    public string? TimeZoneText { get; set; }
+
+    [Parameter]
+    public string? SecondaryTimeZoneText { get; set; }
 
     [Parameter]
     public CultureInfo? Culture { get; set; }
@@ -138,6 +160,12 @@ public sealed partial class MusselCalendarView
 
     private string FitText => FitsLanes ? "true" : "false";
 
+    private bool ShowsTimeGrid => View is CalendarViewKind.Day or CalendarViewKind.Week or CalendarViewKind.Days;
+
+    private bool IsDual => SecondaryOffset.HasValue;
+
+    private string TimeGridClass => IsDual ? "mc-timegrid mc-dual" : "mc-timegrid";
+
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-calendar {extra}" : "mussel-calendar";
 
     private string RootStyle
@@ -159,24 +187,33 @@ public sealed partial class MusselCalendarView
     {
         today = DateOnly.FromDateTime(Now);
         range = CalendarRange.Of(View, Date, FirstDayOfWeek, DayCount);
-        if (View == CalendarViewKind.Month)
+        weeks.Clear();
+        allDayBars = [];
+        timed = [];
+        allDayLanes = 0;
+        schedule = [];
+        dayCounts = [];
+        switch (View)
         {
-            BuildMonth();
-            allDayBars = [];
-            timed = [];
-            allDayLanes = 0;
-        }
-        else
-        {
-            weeks.Clear();
-            allDayBars = CalendarLayout.BuildBars(Items.Where(CalendarLayout.InAllDayLane), range.Start, range.Days, out allDayLanes);
-            timed = CalendarLayout.BuildTimed(Items, range.Start, range.Days, SlotMinutes, OverlapMode);
+            case CalendarViewKind.Month:
+                BuildMonth();
+                break;
+            case CalendarViewKind.Schedule:
+                schedule = CalendarLayout.BuildSchedule(Items, range);
+                break;
+            case CalendarViewKind.Year:
+                dayCounts = CalendarLayout.CountDays(Items, range);
+                break;
+            default:
+                allDayBars = CalendarLayout.BuildBars(Items.Where(CalendarLayout.InAllDayLane), range.Start, range.Days, out allDayLanes);
+                timed = CalendarLayout.BuildTimed(Items, range.Start, range.Days, SlotMinutes, OverlapMode);
+                break;
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var showTimeGrid = View != CalendarViewKind.Month;
+        var showTimeGrid = ShowsTimeGrid;
         var scroll = showTimeGrid && !timeGridShown;
         timeGridShown = showTimeGrid;
         var key = FitKey;
@@ -377,6 +414,50 @@ public sealed partial class MusselCalendarView
     private string DayLabel(DateOnly day) => day.ToString("D", FormatCulture);
 
     private string HourText(int hour) => new DateTime(2000, 1, 1, hour, 0, 0, DateTimeKind.Unspecified).ToString(HourFormat, FormatCulture);
+
+    private string SecondaryHourText(int hour)
+    {
+        var minutes = (hour * 60) + (int)Math.Round(SecondaryOffset.GetValueOrDefault().TotalMinutes);
+        minutes = ((minutes % CalendarLayout.MinutesPerDay) + CalendarLayout.MinutesPerDay) % CalendarLayout.MinutesPerDay;
+        return new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).AddMinutes(minutes).ToString(HourFormat, FormatCulture);
+    }
+
+    private string ScheduleDayClass(DateOnly day) => day == today ? "mc-schedule-day mc-today" : "mc-schedule-day";
+
+    private string ScheduleDayText(DateOnly day) => day.ToString(ScheduleDayFormat, FormatCulture);
+
+    private string ScheduleTimeText(CalendarItem item, DateOnly day)
+    {
+        if (CalendarLayout.CoversDay(item, day))
+        {
+            return AllDayText;
+        }
+
+        var start = day.ToDateTime(TimeOnly.MinValue);
+        var startsToday = item.Start >= start;
+        var endsToday = item.End <= start.AddDays(1);
+        if (startsToday && endsToday)
+        {
+            return $"{TimeText(item.Start)} – {TimeText(item.End)}";
+        }
+
+        return startsToday ? $"{TimeText(item.Start)} –" : $"– {TimeText(item.End)}";
+    }
+
+    private string MonthName(DateOnly day) => FormatCulture.DateTimeFormat.GetMonthName(day.Month);
+
+    private string ShortestDayName(int index) => FormatCulture.DateTimeFormat.GetShortestDayName((DayOfWeek)(((int)FirstDayOfWeek + index) % 7));
+
+    private string YearDayClass(DateOnly day)
+    {
+        var css = dayCounts.ContainsKey(day) ? "mc-year-day mc-marked" : "mc-year-day";
+        return day == today ? css + " mc-today" : css;
+    }
+
+    private string YearDayLabel(DateOnly day) =>
+        dayCounts.TryGetValue(day, out var count)
+            ? $"{DayLabel(day)}, {String.Format(FormatCulture, ItemCountFormat, count)}"
+            : DayLabel(day);
 
     private string TimeText(DateTime value) => value.ToString(TimeFormat, FormatCulture);
 

@@ -6,6 +6,8 @@ internal readonly record struct BarSegment(CalendarItem Item, int Column, int Sp
 
 internal sealed record MonthWeek(DateOnly Start, IReadOnlyList<BarSegment> Bars, IReadOnlyList<int> More);
 
+internal sealed record ScheduleDay(DateOnly Date, IReadOnlyList<CalendarItem> Items);
+
 internal static class CalendarLayout
 {
     public const int MinutesPerDay = 1440;
@@ -30,6 +32,53 @@ internal static class CalendarLayout
     }
 
     public static int DayCount(CalendarItem item) => EndDay(item).DayNumber - FirstDay(item).DayNumber;
+
+    public static bool CoversDay(CalendarItem item, DateOnly day)
+    {
+        if (item.AllDay)
+        {
+            return true;
+        }
+
+        var start = day.ToDateTime(TimeOnly.MinValue);
+        return (item.Start <= start) && (item.End >= start.AddDays(1));
+    }
+
+    public static List<ScheduleDay> BuildSchedule(IReadOnlyList<CalendarItem> items, CalendarRange range)
+    {
+        var result = new List<ScheduleDay>();
+        for (var day = range.Start; day < range.End; day = day.AddDays(1))
+        {
+            var current = day;
+            var found = items
+                .Where(x => (FirstDay(x) <= current) && (current < EndDay(x)))
+                .OrderBy(x => !CoversDay(x, current))
+                .ThenBy(static x => x.Start)
+                .ToList();
+            if (found.Count > 0)
+            {
+                result.Add(new ScheduleDay(current, found));
+            }
+        }
+
+        return result;
+    }
+
+    public static Dictionary<DateOnly, int> CountDays(IEnumerable<CalendarItem> items, CalendarRange range)
+    {
+        var counts = new Dictionary<DateOnly, int>();
+        foreach (var item in items)
+        {
+            var first = FirstDay(item);
+            var end = EndDay(item);
+            for (var day = first < range.Start ? range.Start : first; (day < end) && (day < range.End); day = day.AddDays(1))
+            {
+                counts[day] = counts.GetValueOrDefault(day) + 1;
+            }
+        }
+
+        return counts;
+    }
 
     public static List<TimedSegment> BuildTimed(IReadOnlyList<CalendarItem> items, DateOnly firstDay, int days, int minMinutes, CalendarOverlapMode overlapMode)
     {

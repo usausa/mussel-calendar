@@ -5,5 +5,7 @@ public enum CalendarViewKind
     Day,
     Week,
     Days,
-    Month
+    Month,
+    Schedule,
+    Year
 }

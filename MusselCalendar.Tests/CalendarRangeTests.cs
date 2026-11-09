@@ -35,11 +35,31 @@ public sealed class CalendarRangeTests
         Assert.False(range.Contains(new DateOnly(2026, 11, 15)));
     }
 
+    [Fact]
+    public void ScheduleCoversOneMonthFromDate()
+    {
+        var range = CalendarRange.Of(CalendarViewKind.Schedule, new DateOnly(2026, 11, 12), DayOfWeek.Sunday, 4);
+
+        Assert.Equal(new DateOnly(2026, 11, 12), range.Start);
+        Assert.Equal(new DateOnly(2026, 12, 12), range.End);
+    }
+
+    [Fact]
+    public void YearCoversTheCalendarYear()
+    {
+        var range = CalendarRange.Of(CalendarViewKind.Year, new DateOnly(2028, 6, 15), DayOfWeek.Monday, 4);
+
+        Assert.Equal(new DateOnly(2028, 1, 1), range.Start);
+        Assert.Equal(366, range.Days);
+    }
+
     [Theory]
     [InlineData(CalendarViewKind.Day, 1, "2026-11-13")]
     [InlineData(CalendarViewKind.Days, -1, "2026-11-08")]
     [InlineData(CalendarViewKind.Week, 1, "2026-11-19")]
     [InlineData(CalendarViewKind.Month, 1, "2026-12-12")]
+    [InlineData(CalendarViewKind.Schedule, -1, "2026-10-12")]
+    [InlineData(CalendarViewKind.Year, 1, "2027-11-12")]
     public void MoveStepsByView(CalendarViewKind view, int direction, string expected)
     {
         Assert.Equal(DateOnly.Parse(expected, CultureInfo.InvariantCulture), CalendarRange.Move(view, new DateOnly(2026, 11, 12), direction, 4));

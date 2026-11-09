@@ -4,16 +4,16 @@
 
 ## 🐚 What is this?
 
-Day, week and month calendar views for Blazor, made for apps that keep schedules.  
+Day, week, month, year and schedule views for Blazor, made for apps that keep schedules.  
 Items are selected, moved and resized with a mouse, touch or the keyboard; the view reports each change, and the application keeps the data. A sibling of [MusselChart](https://github.com/usausa/mussel-chart).  
 
 | 🗓️ Week | 🖱️ Drag | 📆 Month |
 |:-:|:-:|:-:|
 | <img src="Document/week.png" width="240" /> | <img src="Document/drag.png" width="240" /> | <img src="Document/month.png" width="240" /> |
 
-| 🌙 Dark |
-|:-:|
-| <img src="Document/dark.png" width="240" /> |
+| 📋 Schedule | 📅 Year | 🌙 Dark |
+|:-:|:-:|:-:|
+| <img src="Document/schedule.png" width="240" /> | <img src="Document/year.png" width="240" /> | <img src="Document/dark.png" width="240" /> |
 
 ## 🚀 Quick Start
 
@@ -54,7 +54,7 @@ Show the items in an interactive component, and apply the changes the view repor
 }
 ```
 
-`View` switches the day, week, N days and month views, `CalendarRange.Move` gives the date of the next page, and `MusselMiniMonth` picks a date.  
+`View` switches the day, week, N days, month, year and schedule views, `CalendarRange.Move` gives the date of the next page, and `MusselMiniMonth` picks a date.  
 
 ```razor
 <MusselMiniMonth @bind-Date="date" FirstDayOfWeek="DayOfWeek.Monday" Highlight="CalendarRange.Of(view, date, DayOfWeek.Monday, 4)" />
@@ -72,14 +72,14 @@ The `Example` project shows a calendar page with popups and the dark theme on Se
 | Items | `Color` of each item; timed items of one day are a dot and a time in the month view |
 | Overlaps | Side by side (`Columns`) or stacked with an offset (`Stack`) |
 | Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them |
-| Text | `Culture`, `HourFormat`, `TimeFormat`, `MonthDayFormat`, `AllDayText` and `MoreFormat` |
+| Text | `Culture`, `HourFormat`, `TimeFormat`, `MonthDayFormat`, `ScheduleDayFormat`, `AllDayText`, `MoreFormat`, `EmptyText` and `ItemCountFormat` |
 
 ## ✅ Supported features
 
 | Category | Detail |
 |---|---|
-| **Views** | Day, week, N days and month, any first day of the week, and a mini month that marks the shown range |
-| **Items** | Timed and all-day items, items over several days or midnight, read-only items, overlaps, hidden counts in month cells and the current time line |
+| **Views** | Day, week, N days, month, year and schedule, any first day of the week, hour labels of a second time zone, and a mini month that marks the shown range |
+| **Items** | Timed and all-day items, items over several days or midnight, read-only items, overlaps, hidden counts in month cells, marks of days with items in the year and the current time line |
 | **Mouse and touch** | Click or drag to select a range, drag to move or resize, moving between the all-day lane and the time grid, auto scroll, Esc to cancel, and a long press to start a drag on touch |
 | **Keyboard** | Enter or Space opens an item, Alt+arrow keys move it, and Alt+Shift+Up or Down change its end |
 | **Hosting** | Interactive Server, WebAssembly (also trimmed) and Auto |

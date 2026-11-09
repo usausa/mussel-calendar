@@ -28,6 +28,8 @@ public readonly struct CalendarRange : IEquatable<CalendarRange>
             CalendarViewKind.Day => new CalendarRange(day, day.AddDays(1)),
             CalendarViewKind.Days => new CalendarRange(day, day.AddDays(Math.Max(dayCount, 1))),
             CalendarViewKind.Week => new CalendarRange(StartOfWeek(day, firstDayOfWeek), StartOfWeek(day, firstDayOfWeek).AddDays(7)),
+            CalendarViewKind.Schedule => new CalendarRange(day, day.AddMonths(1)),
+            CalendarViewKind.Year => new CalendarRange(new DateOnly(day.Year, 1, 1), new DateOnly(day.Year, 1, 1).AddYears(1)),
             _ => OfMonth(day, firstDayOfWeek)
         };
 
@@ -37,6 +39,7 @@ public readonly struct CalendarRange : IEquatable<CalendarRange>
             CalendarViewKind.Day => day.AddDays(direction),
             CalendarViewKind.Days => day.AddDays(direction * Math.Max(dayCount, 1)),
             CalendarViewKind.Week => day.AddDays(direction * 7),
+            CalendarViewKind.Year => day.AddYears(direction),
             _ => day.AddMonths(direction)
         };
 

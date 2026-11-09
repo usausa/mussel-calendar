@@ -46,11 +46,81 @@
             </div>
         </div>
     }
+    else if (View == CalendarViewKind.Schedule)
+    {
+        <div class="mc-schedule">
+            @if (schedule.Count == 0)
+            {
+                <div class="mc-schedule-empty">@EmptyText</div>
+            }
+            @foreach (var group in schedule)
+            {
+                var day = group.Date;
+                <div class="@ScheduleDayClass(day)">
+                    <div class="mc-schedule-date">
+                        <button type="button" class="mc-date" aria-label="@DayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
+                        <span class="mc-schedule-day-text">@ScheduleDayText(day)</span>
+                    </div>
+                    <div class="mc-schedule-items">
+                        @foreach (var item in group.Items)
+                        {
+                            <div class="mc-schedule-item" data-id="@item.Id" tabindex="0" role="button" aria-label="@ItemLabel(item)" style="@ColorStyle(item)">
+                                <span class="mc-dot"></span>
+                                <span class="mc-schedule-time">@ScheduleTimeText(item, day)</span>
+                                <span class="mc-schedule-title">@item.Title</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (View == CalendarViewKind.Year)
+    {
+        <div class="mc-year">
+            @for (var i = 0; i < 12; i++)
+            {
+                var first = range.Start.AddMonths(i);
+                var start = CalendarRange.StartOfWeek(first, FirstDayOfWeek);
+                <div class="mc-year-month">
+                    <div class="mc-year-title">@MonthName(first)</div>
+                    <div class="mc-year-grid">
+                        @for (var w = 0; w < 7; w++)
+                        {
+                            <div class="mc-year-weekday">@ShortestDayName(w)</div>
+                        }
+                        @for (var d = 0; d < 42; d++)
+                        {
+                            var day = start.AddDays(d);
+                            if (day.Month != first.Month)
+                            {
+                                <span class="mc-year-blank"></span>
+                            }
+                            else
+                            {
+                                <button type="button" class="@YearDayClass(day)" aria-label="@YearDayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
     else
     {
-        <div class="mc-timegrid" style="--mc-days: @range.Days">
+        <div class="@TimeGridClass" style="--mc-days: @range.Days">
             <div class="mc-head">
-                <div></div>
+                @if (IsDual)
+                {
+                    <div class="mc-zones">
+                        <span title="@SecondaryTimeZoneText">@SecondaryTimeZoneText</span>
+                        <span title="@TimeZoneText">@TimeZoneText</span>
+                    </div>
+                }
+                else
+                {
+                    <div></div>
+                }
                 @for (var i = 0; i < range.Days; i++)
                 {
                     var day = range.Start.AddDays(i);
@@ -78,6 +148,10 @@
                     @for (var hour = 1; hour < 24; hour++)
                     {
                         <div class="mc-time" style="top: @(hour * HourHeight)px">@HourText(hour)</div>
+                        @if (IsDual)
+                        {
+                            <div class="mc-time mc-secondary" style="top: @(hour * HourHeight)px">@SecondaryHourText(hour)</div>
+                        }
                     }
                 </div>
                 <div class="mc-columns">

@@ -42,7 +42,7 @@ class Calendar {
         this.onTouchMove = (e) => this.touchMove(e);
         this.onTouchEnd = (e) => this.touchEnd(e);
         this.onKeyDown = (e) => this.keyDown(e);
-        this.onClick = (e) => this.clickMore(e);
+        this.onClick = (e) => this.clickRoot(e);
         this.onRootTouchMove = (e) => {
             if (this.drag && e.cancelable) {
                 e.preventDefault();
@@ -153,6 +153,11 @@ class Calendar {
         return item && this.root.contains(item) ? item : null;
     }
 
+    entryOf(target) {
+        const entry = target instanceof Element ? target.closest(".mc-schedule-item[data-id]") : null;
+        return entry && this.root.contains(entry) ? entry : null;
+    }
+
     kindOf(target) {
         if (!(target instanceof Element) || target.closest("button")) {
             return null;
@@ -173,6 +178,14 @@ class Calendar {
     }
 
     keyDown(e) {
+        const entry = this.entryOf(e.target);
+        if (entry) {
+            if ((e.key === "Enter") || (e.key === " ")) {
+                e.preventDefault();
+                this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect()));
+            }
+            return;
+        }
         const item = this.itemOf(e.target);
         if (!item || this.drag || this.settling) {
             return;
@@ -633,7 +646,13 @@ class Calendar {
         }
     }
 
-    clickMore(e) {
+    clickRoot(e) {
+        const entry = this.entryOf(e.target);
+        if (entry) {
+            e.preventDefault();
+            this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect()));
+            return;
+        }
         const more = e.target instanceof Element ? e.target.closest(".mc-more") : null;
         if (!more || !this.root.contains(more)) {
             return;

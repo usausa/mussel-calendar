@@ -6,8 +6,8 @@ The calendar component. It fills the height of its parent, and other attributes 
 
 | Name | Type | Default | Description |
 |---|---|---|---|
-| `View` | `CalendarViewKind` | `Week` | `Day`, `Week`, `Days` or `Month` |
-| `Date` | `DateOnly` | today | The day, the first of the N days, or a day in the week or the month to show |
+| `View` | `CalendarViewKind` | `Week` | `Day`, `Week`, `Days`, `Month`, `Schedule` or `Year` |
+| `Date` | `DateOnly` | today | The day, the first of the N days or of the schedule, or a day in the week, the month or the year to show |
 | `DayCount` | `int` | `4` | Days of `Days` |
 | `FirstDayOfWeek` | `DayOfWeek` | `Sunday` | The first day of `Week` and `Month` |
 | `Items` | `IReadOnlyList<CalendarItem>` | empty | The items to show |
@@ -19,12 +19,18 @@ The calendar component. It fills the height of its parent, and other attributes 
 | `OverlapMode` | `CalendarOverlapMode` | `Columns` | Overlapping timed items side by side (`Columns`) or stacked with an offset (`Stack`) |
 | `AllDayText` | `string` | `All day` | The label of the all-day lane |
 | `MoreFormat` | `string` | `+{0}` | The text of the hidden items of a month cell |
+| `EmptyText` | `string` | `No events` | The text of a schedule without items |
+| `ItemCountFormat` | `string` | `{0} events` | The count of items added to the label of a day in the year view |
 | `HourFormat`, `TimeFormat` | `string` | `H:mm` | Formats of the hour labels and of the times of items, such as `h tt` and `h:mm tt`. A single custom specifier needs `%` (`%H`), because one letter alone is a standard format |
 | `MonthDayFormat` | `string` | `M/d` | The format of the first day of a month in the month view, such as `MMM d` |
+| `ScheduleDayFormat` | `string` | `MMM, ddd` | The format beside each date of the schedule |
+| `SecondaryOffset` | `TimeSpan?` | `null` | The difference of a second time zone from the shown hours, such as `-9:00` for UTC beside Japan time; adds its hour labels, none when `null` |
+| `TimeZoneText`, `SecondaryTimeZoneText` | `string?` | `null` | Labels above the two columns of hour labels, shown with `SecondaryOffset` |
 | `Culture` | `CultureInfo?` | `null` | Weekday names and labels; the current culture when `null` |
 | `TimeProvider` | `TimeProvider?` | `null` | Today and the current time line; the system clock when `null` |
 
 On Interactive Server, the defaults of `Date` and `TimeProvider` come from the clock and time zone of the server. Pass the user's date and a `TimeProvider` with the user's time zone.  
+The view does not convert time zones: give `SecondaryOffset` for the shown range, as one offset is used for the whole range.  
 
 ### Events
 
@@ -34,7 +40,7 @@ On Interactive Server, the defaults of `Date` and `TimeProvider` come from the c
 | `ItemClicked` | `CalendarItemEventArgs` | A click, a tap, Enter or Space on an item, with `Item` and `Anchor` |
 | `ItemChanged` | `CalendarItemChangeEventArgs` | A move or a resize, with `Item` and the new `Start`, `End` and `AllDay` |
 | `MoreClicked` | `CalendarMoreEventArgs` | The hidden items of a month cell, with `Day`, every item of the day in `Items`, and `Anchor` |
-| `DayClicked` | `DateOnly` | The date of a day header or a month cell |
+| `DayClicked` | `DateOnly` | The date of a day header, a month cell, a schedule day or a day of the year view |
 
 `ItemChanged` does not change the item. Set the new values on the item to accept them; otherwise the item stays where it was.  
 Read-only items raise `ItemClicked` only.  
@@ -51,6 +57,7 @@ Read-only items raise `ItemClicked` only.
 | Cancel a drag | Esc | | |
 
 On touch, a long press released without moving acts as a tap.  
+The schedule and the year views do not select or move: items of the schedule open by a click, a tap, Enter or Space, and a day of the year view raises `DayClicked`.  
 
 A timed item dropped on the all-day lane becomes an all-day item of that day, and an all-day item dropped on the time grid gets `DefaultMinutes`.  
 A drag near the top or bottom of the time grid scrolls it. On touch, moving before the long press scrolls the page.  
@@ -93,7 +100,7 @@ The days a view shows.
 | `Start`, `End`, `Days` | The first day, the day after the last, and the number of days |
 | `StartTime`, `EndTime` | `Start` and `End` at 0:00 |
 | `Contains(day)` | Whether the range has the day |
-| `Of(view, day, firstDayOfWeek, dayCount)` | The range of a view; a month covers whole weeks |
+| `Of(view, day, firstDayOfWeek, dayCount)` | The range of a view; a month covers whole weeks, the schedule a month from the day, and a year January to December |
 | `Move(view, day, direction, dayCount)` | The date of the previous (`-1`) or next (`1`) page |
 | `StartOfWeek(day, firstDayOfWeek)` | The first day of the week of the day |
 
@@ -106,10 +113,10 @@ Set the variables on the root element with `style` or a class of your own. Add `
 | `--mussel-calendar-line` | `--mussel-grid-line`, `#dadce0` | Grid lines |
 | `--mussel-calendar-text`, `--mussel-calendar-muted` | `--mussel-primary-text`, `#3c4043` and `--mussel-muted-text`, `#70757a` | Text and labels |
 | `--mussel-calendar-background`, `--mussel-calendar-outside` | `#ffffff`, `#f8f9fa` | The background, and days outside the month |
-| `--mussel-calendar-today`, `--mussel-calendar-today-text` | `#1a73e8`, `#ffffff` | The date of today and the focus ring |
+| `--mussel-calendar-today`, `--mussel-calendar-today-text` | `#1a73e8`, `#ffffff` | The date of today, the focus ring and the marks of the year view |
 | `--mussel-calendar-now` | `#ea4335` | The current time line |
 | `--mussel-calendar-event`, `--mussel-calendar-event-text` | `#039be5`, `#ffffff` | Items without `Color` |
-| `--mussel-calendar-hover` | `rgba(60, 64, 67, 0.08)` | Dates, chips and hidden counts under the pointer |
+| `--mussel-calendar-hover` | `rgba(60, 64, 67, 0.08)` | Dates, chips, hidden counts, schedule items and days of the year view under the pointer |
 | `--mussel-calendar-range`, `--mussel-calendar-range-border` | `rgba(26, 115, 232, 0.16)`, `rgba(26, 115, 232, 0.6)` | The range while selecting |
-| `--mussel-calendar-gutter` | `56px` | The width of the hour labels |
+| `--mussel-calendar-gutter` | `56px` | The width of the hour labels; twice with `SecondaryOffset` |
 | `--mussel-calendar-lane-height` | `22px` | Lanes of the all-day row and month cells |

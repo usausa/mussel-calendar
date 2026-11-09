@@ -17,11 +17,17 @@
             <option value="0">日曜はじまり</option>
             <option value="1">月曜はじまり</option>
         </select>
+        <select class="app-select" aria-label="2 つ目の目盛り" value="@(secondary ? "1" : "0")" @onchange="OnSecondaryChanged">
+            <option value="0">目盛り 1 つ</option>
+            <option value="1">UTC も出す</option>
+        </select>
         <MudToggleGroup T="CalendarViewKind" @bind-Value="view" Size="Size.Small" Outlined="true">
             <MudToggleItem Value="CalendarViewKind.Day" Text="日" />
             <MudToggleItem Value="CalendarViewKind.Week" Text="週" />
             <MudToggleItem Value="CalendarViewKind.Days" Text="4日" />
             <MudToggleItem Value="CalendarViewKind.Month" Text="月" />
+            <MudToggleItem Value="CalendarViewKind.Year" Text="年" />
+            <MudToggleItem Value="CalendarViewKind.Schedule" Text="スケジュール" />
         </MudToggleGroup>
     </div>
     <div class="app-side">
@@ -46,6 +52,11 @@
                             Items="VisibleItems"
                             AllDayText="終日"
                             MoreFormat="他 {0} 件"
+                            EmptyText="予定はありません"
+                            ItemCountFormat="予定 {0} 件"
+                            SecondaryOffset="SecondaryOffset"
+                            TimeZoneText="@LocalZoneText"
+                            SecondaryTimeZoneText="UTC"
                             RangeSelected="OnRangeSelected"
                             ItemClicked="OnItemClicked"
                             ItemChanged="OnItemChanged"

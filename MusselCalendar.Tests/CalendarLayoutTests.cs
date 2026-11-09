@@ -127,6 +127,24 @@ public sealed class CalendarLayoutTests
         Assert.Equal(1, week.More[2]);
     }
 
+    [Fact]
+    public void CountDaysStaysInRange()
+    {
+        var range = new CalendarRange(new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1));
+        CalendarItem[] items =
+        [
+            AllDay("trip", new DateOnly(2025, 12, 30), 4),
+            Timed("meeting", new DateOnly(2026, 1, 2), 9, 10),
+            AllDay("late", new DateOnly(2026, 12, 31), 3)
+        ];
+
+        var counts = CalendarLayout.CountDays(items, range);
+
+        Assert.Equal(
+            [(new DateOnly(2026, 1, 1), 1), (new DateOnly(2026, 1, 2), 2), (new DateOnly(2026, 12, 31), 1)],
+            counts.OrderBy(static x => x.Key).Select(static x => (x.Key, x.Value)));
+    }
+
     private static (double Left, double Width) Position(IEnumerable<TimedSegment> segments, string id)
     {
         var segment = segments.Single(x => x.Item.Id == id);
