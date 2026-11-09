@@ -3,7 +3,6 @@ namespace MusselCalendar;
 using System.Globalization;
 
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
 using MusselCalendar.Internal;
@@ -17,6 +16,8 @@ public sealed partial class MusselCalendarView
     private const string DateTimeFormat = "yyyy-MM-dd'T'HH:mm:ss";
 
     private const int ShortHeight = 36;
+
+    private const int FallbackLanes = 3;
 
     private readonly List<MonthWeek> weeks = [];
 
@@ -37,6 +38,10 @@ public sealed partial class MusselCalendarView
     private List<TimedSegment> timed = [];
 
     private int allDayLanes;
+
+    private int fittedLanes = FallbackLanes;
+
+    private int fitKey;
 
     private DateOnly today;
 
@@ -75,7 +80,7 @@ public sealed partial class MusselCalendarView
     public int ScrollHour { get; set; } = 8;
 
     [Parameter]
-    public int MonthLanes { get; set; } = 3;
+    public int MonthLanes { get; set; }
 
     [Parameter]
     public CalendarOverlapMode OverlapMode { get; set; } = CalendarOverlapMode.Columns;
@@ -85,6 +90,15 @@ public sealed partial class MusselCalendarView
 
     [Parameter]
     public string MoreFormat { get; set; } = "+{0}";
+
+    [Parameter]
+    public string HourFormat { get; set; } = "H:mm";
+
+    [Parameter]
+    public string TimeFormat { get; set; } = "H:mm";
+
+    [Parameter]
+    public string MonthDayFormat { get; set; } = "M/d";
 
     [Parameter]
     public CultureInfo? Culture { get; set; }
@@ -116,6 +130,14 @@ public sealed partial class MusselCalendarView
 
     private DateTime Now => Clock.GetLocalNow().DateTime;
 
+    private bool FitsLanes => MonthLanes <= 0;
+
+    private int Lanes => FitsLanes ? fittedLanes : MonthLanes;
+
+    private int FitKey => FitsLanes ? weeks.Count : 0;
+
+    private string FitText => FitsLanes ? "true" : "false";
+
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-calendar {extra}" : "mussel-calendar";
 
     private string RootStyle
@@ -137,20 +159,16 @@ public sealed partial class MusselCalendarView
     {
         today = DateOnly.FromDateTime(Now);
         range = CalendarRange.Of(View, Date, FirstDayOfWeek, DayCount);
-        weeks.Clear();
         if (View == CalendarViewKind.Month)
         {
-            for (var start = range.Start; start < range.End; start = start.AddDays(7))
-            {
-                weeks.Add(CalendarLayout.BuildMonthWeek(Items, start, MonthLanes));
-            }
-
+            BuildMonth();
             allDayBars = [];
             timed = [];
             allDayLanes = 0;
         }
         else
         {
+            weeks.Clear();
             allDayBars = CalendarLayout.BuildBars(Items.Where(CalendarLayout.InAllDayLane), range.Start, range.Days, out allDayLanes);
             timed = CalendarLayout.BuildTimed(Items, range.Start, range.Days, SlotMinutes, OverlapMode);
         }
@@ -159,35 +177,37 @@ public sealed partial class MusselCalendarView
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         var showTimeGrid = View != CalendarViewKind.Month;
-        if (firstRender)
+        var scroll = showTimeGrid && !timeGridShown;
+        timeGridShown = showTimeGrid;
+        var key = FitKey;
+        var fit = (key != fitKey) && (key > 0);
+        fitKey = key;
+        try
         {
-            try
+            if (firstRender)
             {
-                module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
-                if (disposed)
-                {
-                    return;
-                }
+                await AttachAsync().ConfigureAwait(true);
+                return;
+            }
 
-                reference = DotNetObjectReference.Create(this);
-                instance = await module.InvokeAsync<IJSObjectReference>("attach", reference, element, ScrollHour).ConfigureAwait(true);
-            }
-            catch (JSDisconnectedException)
+            if (instance is null)
             {
+                return;
             }
-        }
-        else if (showTimeGrid && !timeGridShown && (instance is not null))
-        {
-            try
+
+            if (scroll)
             {
                 await instance.InvokeVoidAsync("scroll", ScrollHour).ConfigureAwait(true);
             }
-            catch (JSDisconnectedException)
+
+            if (fit)
             {
+                await instance.InvokeVoidAsync("fit").ConfigureAwait(true);
             }
         }
-
-        timeGridShown = showTimeGrid;
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -196,16 +216,7 @@ public sealed partial class MusselCalendarView
         timer?.Dispose();
         try
         {
-            if (instance is not null)
-            {
-                await instance.InvokeVoidAsync("dispose").ConfigureAwait(true);
-                await instance.DisposeAsync().ConfigureAwait(true);
-            }
-
-            if (module is not null)
-            {
-                await module.DisposeAsync().ConfigureAwait(true);
-            }
+            await ReleaseAsync().ConfigureAwait(true);
         }
         catch (JSDisconnectedException)
         {
@@ -266,19 +277,88 @@ public sealed partial class MusselCalendarView
             : ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, end, false));
     }
 
-    private void OnTick(object? state) => _ = InvokeAsync(StateHasChanged);
-
-    private Task OnMoreClick(DateOnly day, MouseEventArgs e)
+    [JSInvokable]
+    public void OnMonthLanes(int lanes)
     {
-        var start = day.ToDateTime(TimeOnly.MinValue);
-        var end = start.AddDays(1);
+        if (disposed || !FitsLanes || (lanes < 1) || (lanes == fittedLanes))
+        {
+            return;
+        }
+
+        fittedLanes = lanes;
+        if (View == CalendarViewKind.Month)
+        {
+            BuildMonth();
+            StateHasChanged();
+        }
+    }
+
+    private async Task AttachAsync()
+    {
+        module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
+        if (disposed)
+        {
+            await ReleaseAsync().ConfigureAwait(true);
+            return;
+        }
+
+        reference = DotNetObjectReference.Create(this);
+        instance = await module.InvokeAsync<IJSObjectReference>("attach", reference, element, ScrollHour).ConfigureAwait(true);
+        if (disposed)
+        {
+            await ReleaseAsync().ConfigureAwait(true);
+        }
+    }
+
+    private async Task ReleaseAsync()
+    {
+        var attached = instance;
+        var loaded = module;
+        instance = null;
+        module = null;
+        if (attached is not null)
+        {
+            await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
+            await attached.DisposeAsync().ConfigureAwait(true);
+        }
+
+        if (loaded is not null)
+        {
+            await loaded.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    private void BuildMonth()
+    {
+        weeks.Clear();
+        for (var start = range.Start; start < range.End; start = start.AddDays(7))
+        {
+            weeks.Add(CalendarLayout.BuildMonthWeek(Items, start, Lanes));
+        }
+    }
+
+    [JSInvokable]
+    public Task OnMoreClick(string date, double left, double top, double width, double height)
+    {
+        if (disposed || !DateOnly.TryParseExact(date, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
+        {
+            return Task.CompletedTask;
+        }
+
         var items = Items
-            .Where(x => (x.Start < end) && (x.End > start))
+            .Where(x => (CalendarLayout.FirstDay(x) <= day) && (day < CalendarLayout.EndDay(x)))
             .OrderBy(static x => !x.AllDay)
             .ThenBy(static x => x.Start)
             .ToList();
-        return MoreClicked.InvokeAsync(new CalendarMoreEventArgs(day, items, new CalendarAnchor(e.ClientX, e.ClientY, 0, 0)));
+        return MoreClicked.InvokeAsync(new CalendarMoreEventArgs(day, items, new CalendarAnchor(left, top, width, height)));
     }
+
+    private void OnTick(object? state) =>
+        _ = InvokeAsync(() =>
+        {
+            today = DateOnly.FromDateTime(Now);
+            StateHasChanged();
+        });
 
     private CalendarItem? Find(string id) => Items.FirstOrDefault(x => String.Equals(x.Id, id, StringComparison.Ordinal));
 
@@ -296,13 +376,13 @@ public sealed partial class MusselCalendarView
 
     private string DayLabel(DateOnly day) => day.ToString("D", FormatCulture);
 
-    private string HourText(int hour) => new DateTime(2000, 1, 1, hour, 0, 0, DateTimeKind.Unspecified).ToString("H:mm", FormatCulture);
+    private string HourText(int hour) => new DateTime(2000, 1, 1, hour, 0, 0, DateTimeKind.Unspecified).ToString(HourFormat, FormatCulture);
 
-    private string TimeText(DateTime value) => value.ToString("H:mm", FormatCulture);
+    private string TimeText(DateTime value) => value.ToString(TimeFormat, FormatCulture);
 
     private string MoreText(int count) => String.Format(FormatCulture, MoreFormat, count);
 
-    private string MonthDateText(DateOnly day) => day.Day == 1 ? day.ToString("M/d", FormatCulture) : day.Day.ToString(FormatCulture);
+    private string MonthDateText(DateOnly day) => day.Day == 1 ? day.ToString(MonthDayFormat, FormatCulture) : day.Day.ToString(FormatCulture);
 
     private string ItemLabel(CalendarItem item) =>
         item.AllDay

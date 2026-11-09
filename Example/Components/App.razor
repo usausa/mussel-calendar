@@ -28,5 +28,10 @@
     public HttpContext HttpContext { get; set; } = default!;
 
     private IComponentRenderMode PageRenderMode =>
-        HttpContext.Request.Cookies[RenderModes.CookieName] == RenderModes.WebAssembly ? InteractiveWebAssembly : InteractiveServer;
+        HttpContext.Request.Cookies[RenderModes.CookieName] switch
+        {
+            RenderModes.WebAssembly => InteractiveWebAssembly,
+            RenderModes.Auto => InteractiveAuto,
+            _ => InteractiveServer
+        };
 }

@@ -19,6 +19,21 @@ public sealed class MusselMiniMonthTests : BunitContext
     }
 
     [Fact]
+    public void TodayMovesAtMidnight()
+    {
+        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 0, TimeSpan.Zero) };
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.TimeProvider, clock));
+        Assert.Equal("12", cut.Find(".mm-today").TextContent);
+
+        clock.Now = clock.Now.AddMinutes(2);
+        clock.Fire();
+
+        cut.WaitForAssertion(() => Assert.Equal("13", cut.Find(".mm-today").TextContent));
+    }
+
+    [Fact]
     public void RootKeepsOwnClass()
     {
         var cut = Render<MusselMiniMonth>(static parameters => parameters

@@ -43,16 +43,17 @@ internal static class CalendarLayout
             for (var order = 0; order < items.Count; order++)
             {
                 var item = items[order];
-                if (InAllDayLane(item) || (item.End <= dayStart) || (item.Start >= dayEnd))
+                var itemEnd = item.End > item.Start ? item.End : item.Start.AddTicks(1);
+                if (InAllDayLane(item) || (itemEnd <= dayStart) || (item.Start >= dayEnd))
                 {
                     continue;
                 }
 
                 var start = item.Start < dayStart ? dayStart : item.Start;
-                var end = item.End > dayEnd ? dayEnd : item.End;
+                var end = itemEnd > dayEnd ? dayEnd : itemEnd;
                 var startMinute = (int)(start - dayStart).TotalMinutes;
                 var endMinute = Math.Min(Math.Max((int)(end - dayStart).TotalMinutes, startMinute + minMinutes), MinutesPerDay);
-                pieces.Add(new Piece(item, startMinute, endMinute, item.Start >= dayStart, item.End <= dayEnd, order));
+                pieces.Add(new Piece(item, startMinute, endMinute, item.Start >= dayStart, itemEnd <= dayEnd, order));
             }
 
             Place(pieces, day, overlapMode, result);

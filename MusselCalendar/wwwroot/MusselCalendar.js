@@ -15,8 +15,15 @@ const dayStart = (date) => parse(`${date}T00:00:00`);
 const dayDiff = (from, to) => Math.round((dayStart(to) - dayStart(from)) / 1440);
 const addDays = (date, days) => format(dayStart(date) + (days * 1440)).slice(0, 10);
 const contains = (rect, x, y) => (x >= rect.left) && (x < rect.right) && (y >= rect.top) && (y < rect.bottom);
+const arrowKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
 const anchorOf = (rect) => [rect.left, rect.top, rect.width, rect.height];
 const preventDefault = (e) => e.preventDefault();
+const themeNames = ["--mussel-calendar-range", "--mussel-calendar-range-border", "--mussel-calendar-event-text"];
+const applyTheme = (element, theme) => {
+    for (const [name, value] of theme) {
+        element.style.setProperty(name, value);
+    }
+};
 
 class Calendar {
     constructor(root, dotNet) {
@@ -35,6 +42,12 @@ class Calendar {
         this.onTouchMove = (e) => this.touchMove(e);
         this.onTouchEnd = (e) => this.touchEnd(e);
         this.onKeyDown = (e) => this.keyDown(e);
+        this.onClick = (e) => this.clickMore(e);
+        this.onRootTouchMove = (e) => {
+            if (this.drag && e.cancelable) {
+                e.preventDefault();
+            }
+        };
         this.onWindowKeyDown = (e) => {
             if ((e.key === "Escape") && this.drag) {
                 e.preventDefault();
@@ -47,6 +60,11 @@ class Calendar {
         root.addEventListener("pointerdown", this.onPointerDown);
         root.addEventListener("touchstart", this.onTouchStart, { passive: true });
         root.addEventListener("keydown", this.onKeyDown);
+        root.addEventListener("click", this.onClick);
+        root.addEventListener("touchmove", this.onRootTouchMove, { passive: false });
+        this.lanes = 0;
+        this.resizeObserver = new ResizeObserver(() => this.fit());
+        this.resizeObserver.observe(root);
     }
 
     get slot() {
@@ -65,6 +83,26 @@ class Calendar {
         const body = this.root.querySelector(".mc-body");
         if (body) {
             body.scrollTop = Math.max((hour * this.hourHeight) - scrollMargin, 0);
+        }
+    }
+
+    fit() {
+        const week = this.root.querySelector(".mc-week");
+        if ((this.root.dataset.fitLanes !== "true") || !week) {
+            return;
+        }
+        const style = getComputedStyle(week);
+        const tracks = style.gridTemplateRows.split(" ").map(parseFloat);
+        const gap = parseFloat(style.rowGap) || 0;
+        if ((tracks.length < 3) || !(tracks[1] > 0)) {
+            return;
+        }
+        const lanes = Math.max(1, Math.floor((week.clientHeight - tracks[0] - gap) / (tracks[1] + gap)));
+        if (lanes !== this.lanes) {
+            this.lanes = lanes;
+            this.dotNet.invokeMethodAsync("OnMonthLanes", lanes).catch(() => {
+                this.lanes = 0;
+            });
         }
     }
 
@@ -110,16 +148,21 @@ class Calendar {
         return column ? { column, minutes: dayStart(column.element.dataset.date) + this.minuteIn(column, y, round) } : null;
     }
 
+    itemOf(target) {
+        const item = target instanceof Element ? target.closest(".mc-event[data-id], .mc-bar[data-id]") : null;
+        return item && this.root.contains(item) ? item : null;
+    }
+
     kindOf(target) {
         if (!(target instanceof Element) || target.closest("button")) {
             return null;
         }
         const handle = target.closest(".mc-resize");
         if (handle) {
-            const item = handle.closest("[data-id]");
+            const item = this.itemOf(handle);
             return item ? { kind: "resize", item } : null;
         }
-        const item = target.closest("[data-id]");
+        const item = this.itemOf(target);
         if (item) {
             return { kind: item.classList.contains("mc-event") ? "move-time" : "move-day", item };
         }
@@ -130,7 +173,7 @@ class Calendar {
     }
 
     keyDown(e) {
-        const item = e.target instanceof Element ? e.target.closest("[data-id]") : null;
+        const item = this.itemOf(e.target);
         if (!item || this.drag || this.settling) {
             return;
         }
@@ -140,7 +183,13 @@ class Calendar {
             this.dotNet.invokeMethodAsync("OnItemClick", id, ...anchorOf(item.getBoundingClientRect()));
             return;
         }
-        if (!e.altKey || (item.dataset.readOnly === "true")) {
+        if (!e.altKey) {
+            return;
+        }
+        if (item.dataset.readOnly === "true") {
+            if (arrowKeys.includes(e.key)) {
+                e.preventDefault();
+            }
             return;
         }
         let call = null;
@@ -254,6 +303,9 @@ class Calendar {
             e.preventDefault();
             this.drag.x = touch.clientX;
             this.drag.y = touch.clientY;
+            if (Math.hypot(touch.clientX - this.drag.originX, touch.clientY - this.drag.originY) > touchTolerance) {
+                this.drag.moved = true;
+            }
             this.update();
         } else if (Math.hypot(touch.clientX - this.pending.x, touch.clientY - this.pending.y) > touchTolerance) {
             this.clearTouch();
@@ -299,7 +351,7 @@ class Calendar {
             p.canceled = true;
             return;
         }
-        const d = { kind: p.kind, item: p.item, x: p.x, y: p.y, result: null };
+        const d = { kind: p.kind, item: p.item, x: p.x, y: p.y, originX: p.x, originY: p.y, moved: !p.touch, result: null };
         if (p.item) {
             d.id = p.item.dataset.id;
             d.start = p.item.dataset.start ? parse(p.item.dataset.start) : null;
@@ -316,6 +368,11 @@ class Calendar {
             d.anchorDate = this.cellAt(p.x, p.y)?.dataset.date ?? null;
         } else if (d.kind === "resize") {
             d.column = this.columnAt(p.item.getBoundingClientRect().left + 1);
+        }
+        const style = getComputedStyle(this.root);
+        d.theme = themeNames.map((name) => [name, style.getPropertyValue(name)]);
+        for (const element of this.previews) {
+            applyTheme(element, d.theme);
         }
         this.drag = d;
         if (d.id) {
@@ -339,7 +396,9 @@ class Calendar {
             return;
         }
         const body = this.root.querySelector(".mc-body");
-        if (body && ((d.kind !== "move-day") || (this.zoneAt(d.x, d.y) === "time"))) {
+        const zone = this.zoneAt(d.x, d.y);
+        const scrollable = (d.kind === "create-time") || (d.kind === "resize") || ((d.kind === "move-time") && (zone !== "allday")) || ((d.kind === "move-day") && (zone === "time"));
+        if (body && scrollable) {
             const rect = body.getBoundingClientRect();
             if ((d.x >= rect.left) && (d.x <= rect.right)) {
                 const delta = d.y < rect.top + scrollEdge ? -scrollSpeed : d.y > rect.bottom - scrollEdge ? scrollSpeed : 0;
@@ -359,6 +418,7 @@ class Calendar {
         const d = this.drag;
         const zone = this.zoneAt(d.x, d.y);
         if ((d.kind === "create-time") && d.anchor) {
+            d.anchor.column.rect = d.anchor.column.element.getBoundingClientRect();
             const minutes = this.minuteIn(d.anchor.column, d.y, Math.floor);
             const base = dayStart(d.anchor.column.element.dataset.date);
             const anchor = d.anchor.minutes - base;
@@ -386,10 +446,10 @@ class Calendar {
             if (!at) {
                 return;
             }
-            const start = Math.round((at.minutes - d.grab) / this.slot) * this.slot;
+            const base = dayStart(at.column.element.dataset.date);
+            const start = base + (Math.round((at.minutes - d.grab - base) / this.slot) * this.slot);
             const length = d.end - d.start;
             d.result = { start, end: start + length, allDay: false };
-            const base = dayStart(at.column.element.dataset.date);
             this.showTime(at.column, start - base, Math.min(start - base + length, 1440), d.item);
         } else if (d.kind === "move-day") {
             if (zone === "time") {
@@ -410,6 +470,7 @@ class Calendar {
                 this.showDays(addDays(first, shift), addDays(first, shift + days));
             }
         } else if ((d.kind === "resize") && d.column) {
+            d.column.rect = d.column.element.getBoundingClientRect();
             const base = dayStart(d.column.element.dataset.date);
             const end = Math.max(base + this.minuteIn(d.column, d.y, Math.ceil), d.start + this.slot);
             d.result = { start: d.start, end, allDay: false };
@@ -422,6 +483,9 @@ class Calendar {
             const element = document.createElement("div");
             element.className = "mc-preview";
             element.setAttribute("aria-hidden", "true");
+            if (this.drag) {
+                applyTheme(element, this.drag.theme);
+            }
             document.body.appendChild(element);
             this.previews.push(element);
         }
@@ -492,6 +556,11 @@ class Calendar {
         document.body.style.userSelect = "";
         const r = d?.result;
         let call = null;
+        if (commit && d && !d.moved) {
+            this.restore();
+            this.click({ kind: d.kind, item: d.item, x: d.x, y: d.y });
+            return;
+        }
         if (commit && r) {
             if ((d.kind === "create-time") || (d.kind === "create-day")) {
                 const rect = this.previews[0]?.getBoundingClientRect() ?? new DOMRect(d.x, d.y, 0, 0);
@@ -564,6 +633,15 @@ class Calendar {
         }
     }
 
+    clickMore(e) {
+        const more = e.target instanceof Element ? e.target.closest(".mc-more") : null;
+        if (!more || !this.root.contains(more)) {
+            return;
+        }
+        e.preventDefault();
+        this.dotNet.invokeMethodAsync("OnMoreClick", more.dataset.date, ...anchorOf(more.getBoundingClientRect()));
+    }
+
     suppressClick() {
         const onClick = (e) => {
             e.preventDefault();
@@ -585,6 +663,9 @@ class Calendar {
         this.root.removeEventListener("pointerdown", this.onPointerDown);
         this.root.removeEventListener("touchstart", this.onTouchStart, { passive: true });
         this.root.removeEventListener("keydown", this.onKeyDown);
+        this.root.removeEventListener("click", this.onClick);
+        this.root.removeEventListener("touchmove", this.onRootTouchMove, { passive: false });
+        this.resizeObserver.disconnect();
         for (const element of this.previews) {
             element.remove();
         }
@@ -597,6 +678,7 @@ export function attach(dotNet, root, scrollHour) {
     calendar.scroll(scrollHour);
     return {
         scroll: (hour) => calendar.scroll(hour),
+        fit: () => calendar.fit(),
         dispose: () => calendar.dispose()
     };
 }

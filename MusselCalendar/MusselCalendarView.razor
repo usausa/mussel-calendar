@@ -1,6 +1,6 @@
 @implements IAsyncDisposable
 
-<div @ref="element" @attributes="AdditionalAttributes" class="@RootClass" data-slot="@SlotMinutes" data-hour-height="@HourHeight" data-default-minutes="@DefaultMinutes" style="@RootStyle">
+<div @ref="element" @attributes="AdditionalAttributes" class="@RootClass" data-slot="@SlotMinutes" data-hour-height="@HourHeight" data-default-minutes="@DefaultMinutes" data-fit-lanes="@FitText" style="@RootStyle">
     @if (View == CalendarViewKind.Month)
     {
         <div class="mc-month">
@@ -13,7 +13,7 @@
             <div class="mc-weeks" style="--mc-weeks: @weeks.Count">
                 @foreach (var week in weeks)
                 {
-                    <div class="mc-week" style="--mc-lanes: @MonthLanes">
+                    <div class="mc-week" style="--mc-lanes: @Lanes">
                         @for (var i = 0; i < 7; i++)
                         {
                             var day = week.Start.AddDays(i);
@@ -38,7 +38,7 @@
                             var count = week.More[i];
                             if (count > 0)
                             {
-                                <button type="button" class="mc-more" style="grid-column: @(i + 1); grid-row: @(MonthLanes + 1)" @onclick="e => OnMoreClick(day, e)">@MoreText(count)</button>
+                                <button type="button" class="mc-more" data-date="@IsoDate(day)" style="grid-column: @(i + 1); grid-row: @(Lanes + 1)">@MoreText(count)</button>
                             }
                         }
                     </div>

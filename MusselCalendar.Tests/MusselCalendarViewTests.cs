@@ -146,6 +146,102 @@ public sealed class MusselCalendarViewTests : BunitContext
         Assert.Equal("--mussel-calendar-hour-height: 60px; --mussel-calendar-today: #e8710a", root.GetAttribute("style"));
     }
 
+    [Fact]
+    public void FormatsChangeLabels()
+    {
+        CalendarItem[] items = [Item("a", 13.5, 14.5)];
+
+        var week = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items)
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo("en-US"))
+            .Add(static p => p.HourFormat, "h tt")
+            .Add(static p => p.TimeFormat, "h:mm tt"));
+        var month = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo("en-US"))
+            .Add(static p => p.MonthDayFormat, "MMM d"));
+
+        Assert.Equal("1 PM", week.FindAll(".mc-time")[12].TextContent);
+        Assert.Equal("1:30 PM – 2:30 PM", week.Find(".mc-event-time").TextContent);
+        Assert.Contains(month.FindAll(".mc-month-cell .mc-date"), static x => x.TextContent == "Nov 1");
+    }
+
+    [Fact]
+    public async Task FittedLanesRebuildMonth()
+    {
+        CalendarItem[] items = [Item("a", 9, 10), Item("b", 10, 11), Item("c", 11, 12), Item("d", 12, 13), Item("e", 13, 14)];
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items));
+
+        await cut.InvokeAsync(() => cut.Instance.OnMonthLanes(6));
+
+        Assert.Equal("true", cut.Find("div").GetAttribute("data-fit-lanes"));
+        Assert.Contains("--mc-lanes: 6", cut.Find(".mc-week").GetAttribute("style"), StringComparison.Ordinal);
+        Assert.Equal(5, cut.FindAll(".mc-bar").Count);
+        Assert.Empty(cut.FindAll(".mc-more"));
+    }
+
+    [Fact]
+    public async Task MoreClickReportsTheItemsOfTheDay()
+    {
+        var thursday = Thursday.ToDateTime(TimeOnly.MinValue);
+        CalendarItem[] items =
+        [
+            Item("a", 9, 10),
+            new() { Id = "midnight", Title = "midnight", Start = thursday.AddHours(-2), End = thursday },
+            new() { Id = "empty", Title = "empty", Start = thursday, End = thursday, AllDay = true }
+        ];
+        CalendarMoreEventArgs? more = null;
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items)
+            .Add(static p => p.MoreClicked, e => more = e));
+
+        await cut.InvokeAsync(() => cut.Instance.OnMoreClick("2026-11-12", 10, 20, 30, 40));
+
+        Assert.NotNull(more);
+        Assert.Equal(Thursday, more.Day);
+        Assert.Equal(new CalendarAnchor(10, 20, 30, 40), more.Anchor);
+        Assert.Equal(["empty", "a"], more.Items.Select(static x => x.Id));
+    }
+
+    [Fact]
+    public void TodayMovesAtMidnight()
+    {
+        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 0, TimeSpan.Zero) };
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.TimeProvider, clock));
+        Assert.Equal("2026-11-12", cut.Find(".mc-now").ParentElement?.GetAttribute("data-date"));
+
+        clock.Now = clock.Now.AddMinutes(2);
+        clock.Fire();
+
+        cut.WaitForAssertion(() => Assert.Equal("2026-11-13", cut.Find(".mc-now").ParentElement?.GetAttribute("data-date")));
+        Assert.Equal(5, cut.FindAll(".mc-day-head").ToList().FindIndex(static x => x.ClassList.Contains("mc-today")));
+    }
+
+    [Fact]
+    public async Task FixedLanesIgnoreFitting()
+    {
+        CalendarItem[] items = [Item("a", 9, 10), Item("b", 10, 11), Item("c", 11, 12), Item("d", 12, 13)];
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items)
+            .Add(static p => p.MonthLanes, 3));
+
+        await cut.InvokeAsync(() => cut.Instance.OnMonthLanes(6));
+
+        Assert.Equal("false", cut.Find("div").GetAttribute("data-fit-lanes"));
+        Assert.Equal("+2", cut.Find(".mc-more").TextContent);
+    }
+
     private static CalendarItem Item(string id, double startHour, double endHour)
     {
         var start = Thursday.ToDateTime(TimeOnly.MinValue);

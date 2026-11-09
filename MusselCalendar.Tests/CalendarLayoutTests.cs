@@ -16,6 +16,22 @@ public sealed class CalendarLayoutTests
     }
 
     [Fact]
+    public void ZeroLengthAndReversedItemsStayOnTheirStartDay()
+    {
+        var start = Monday.ToDateTime(TimeOnly.MinValue);
+        CalendarItem[] items =
+        [
+            new() { Id = "zero", Title = "zero", Start = start, End = start },
+            new() { Id = "reversed", Title = "reversed", Start = start.AddHours(10), End = start.AddHours(-2) }
+        ];
+
+        var segments = CalendarLayout.BuildTimed(items, Monday.AddDays(-1), 2, 15, CalendarOverlapMode.Columns);
+
+        Assert.Equal((1, 0, 15), segments.Where(static x => x.Item.Id == "zero").Select(static x => (x.Day, x.StartMinute, x.EndMinute)).Single());
+        Assert.Equal((1, 600, 615), segments.Where(static x => x.Item.Id == "reversed").Select(static x => (x.Day, x.StartMinute, x.EndMinute)).Single());
+    }
+
+    [Fact]
     public void LongTimedItemGoesToAllDayLane()
     {
         Assert.True(CalendarLayout.InAllDayLane(Timed("a", Monday, 9, 33)));

@@ -15,12 +15,16 @@ The calendar component. It fills the height of its parent, and other attributes 
 | `DefaultMinutes` | `int` | `60` | The length of a range selected by a click, and of an all-day item dropped on the time grid |
 | `HourHeight` | `int` | `48` | Pixels of an hour |
 | `ScrollHour` | `int` | `8` | The hour at the top when the time grid appears |
-| `MonthLanes` | `int` | `3` | Lanes of a month cell; when a day has more items, the last lane shows how many are hidden |
+| `MonthLanes` | `int` | `0` | Lanes of a month cell; `0` fits them to the row height. When a day has more items, the last lane shows how many are hidden |
 | `OverlapMode` | `CalendarOverlapMode` | `Columns` | Overlapping timed items side by side (`Columns`) or stacked with an offset (`Stack`) |
 | `AllDayText` | `string` | `All day` | The label of the all-day lane |
 | `MoreFormat` | `string` | `+{0}` | The text of the hidden items of a month cell |
+| `HourFormat`, `TimeFormat` | `string` | `H:mm` | Formats of the hour labels and of the times of items, such as `h tt` and `h:mm tt`. A single custom specifier needs `%` (`%H`), because one letter alone is a standard format |
+| `MonthDayFormat` | `string` | `M/d` | The format of the first day of a month in the month view, such as `MMM d` |
 | `Culture` | `CultureInfo?` | `null` | Weekday names and labels; the current culture when `null` |
 | `TimeProvider` | `TimeProvider?` | `null` | Today and the current time line; the system clock when `null` |
+
+On Interactive Server, the defaults of `Date` and `TimeProvider` come from the clock and time zone of the server. Pass the user's date and a `TimeProvider` with the user's time zone.  
 
 ### Events
 
@@ -34,7 +38,7 @@ The calendar component. It fills the height of its parent, and other attributes 
 
 `ItemChanged` does not change the item. Set the new values on the item to accept them; otherwise the item stays where it was.  
 Read-only items raise `ItemClicked` only.  
-`Anchor` (`CalendarAnchor` with `Left`, `Top`, `Width` and `Height`) is the place of the item, the range or the click in the viewport, for a popup.  
+`Anchor` (`CalendarAnchor` with `Left`, `Top`, `Width` and `Height`) is the place of the item, the range or the hidden count in the viewport, for a popup.  
 
 ### Operations
 
@@ -45,6 +49,8 @@ Read-only items raise `ItemClicked` only.
 | Move an item | Drag | Long press and drag | Alt+Left or Right by a day, Alt+Up or Down by a slot |
 | Change the end | Drag the bottom edge | Long press on the bottom edge and drag | Alt+Shift+Up or Down |
 | Cancel a drag | Esc | | |
+
+On touch, a long press released without moving acts as a tap.  
 
 A timed item dropped on the all-day lane becomes an all-day item of that day, and an all-day item dropped on the time grid gets `DefaultMinutes`.  
 A drag near the top or bottom of the time grid scrolls it. On touch, moving before the long press scrolls the page.  
@@ -93,7 +99,7 @@ The days a view shows.
 
 ## 🎨 Styles
 
-Set the variables on the root element with `style` or a class of your own. `MusselMiniMonth` follows `--mussel-primary-text` and `--mussel-muted-text`.  
+Set the variables on the root element with `style` or a class of your own. Add `mussel-dark` to a container or the root element for the dark values (the same class as MusselChart). `MusselMiniMonth` follows `--mussel-primary-text` and `--mussel-muted-text`, and takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover` and `--mussel-calendar-range` on its root.  
 
 | Variable | Default | Description |
 |---|---|---|
@@ -103,5 +109,7 @@ Set the variables on the root element with `style` or a class of your own. `Muss
 | `--mussel-calendar-today`, `--mussel-calendar-today-text` | `#1a73e8`, `#ffffff` | The date of today and the focus ring |
 | `--mussel-calendar-now` | `#ea4335` | The current time line |
 | `--mussel-calendar-event`, `--mussel-calendar-event-text` | `#039be5`, `#ffffff` | Items without `Color` |
+| `--mussel-calendar-hover` | `rgba(60, 64, 67, 0.08)` | Dates, chips and hidden counts under the pointer |
+| `--mussel-calendar-range`, `--mussel-calendar-range-border` | `rgba(26, 115, 232, 0.16)`, `rgba(26, 115, 232, 0.6)` | The range while selecting |
 | `--mussel-calendar-gutter` | `56px` | The width of the hour labels |
 | `--mussel-calendar-lane-height` | `22px` | Lanes of the all-day row and month cells |

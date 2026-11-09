@@ -4,11 +4,17 @@ using System.Globalization;
 
 using Microsoft.AspNetCore.Components;
 
-public sealed partial class MusselMiniMonth
+public sealed partial class MusselMiniMonth : IDisposable
 {
+    private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
+
     private DateOnly month;
 
     private DateOnly shown;
+
+    private DateOnly today;
+
+    private ITimer? timer;
 
     [Parameter]
     public DateOnly Date { get; set; } = DateOnly.FromDateTime(DateTime.Today);
@@ -41,18 +47,39 @@ public sealed partial class MusselMiniMonth
 
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-mini-month {extra}" : "mussel-mini-month";
 
-    private DateOnly Today => DateOnly.FromDateTime((TimeProvider ?? TimeProvider.System).GetLocalNow().DateTime);
+    private TimeProvider Clock => TimeProvider ?? TimeProvider.System;
+
+    private DateOnly Today => DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
 
     private DateOnly Start => CalendarRange.StartOfWeek(month, FirstDayOfWeek);
 
+    protected override void OnInitialized()
+    {
+        timer = Clock.CreateTimer(OnTick, null, TickInterval, TickInterval);
+    }
+
     protected override void OnParametersSet()
     {
+        today = Today;
         if (Date != shown)
         {
             shown = Date;
             month = new DateOnly(Date.Year, Date.Month, 1);
         }
     }
+
+    public void Dispose() => timer?.Dispose();
+
+    private void OnTick(object? state) =>
+        _ = InvokeAsync(() =>
+        {
+            var day = Today;
+            if (day != today)
+            {
+                today = day;
+                StateHasChanged();
+            }
+        });
 
     private void Shift(int months) => month = month.AddMonths(months);
 
@@ -69,6 +96,6 @@ public sealed partial class MusselMiniMonth
             css += " mm-selected";
         }
 
-        return day == Today ? css + " mm-today" : css;
+        return day == today ? css + " mm-today" : css;
     }
 }

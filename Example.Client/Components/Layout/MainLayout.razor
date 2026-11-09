@@ -1,16 +1,38 @@
 @inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider Theme="Theme" IsDarkMode="dark" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="layout">
+<div class="@LayoutClass">
     <header class="layout-bar">
         <span class="layout-title">MusselCalendar</span>
+        <MudIconButton Icon="@DarkIcon" Color="Color.Inherit" Size="Size.Small" aria-label="暗い配色" aria-pressed="@DarkText" OnClick="ToggleDark" />
         <RenderModeSwitch />
     </header>
     <div class="layout-body">
         @Body
     </div>
 </div>
+
+@code {
+    private static readonly MudTheme Theme = new()
+    {
+        PaletteDark = new PaletteDark
+        {
+            Background = "#1F1F1D",
+            Surface = "#262624"
+        }
+    };
+
+    private bool dark;
+
+    private string LayoutClass => dark ? "layout mussel-dark" : "layout";
+
+    private string DarkIcon => dark ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode;
+
+    private string DarkText => dark ? "true" : "false";
+
+    private void ToggleDark() => dark = !dark;
+}

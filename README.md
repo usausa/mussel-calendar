@@ -11,6 +11,10 @@ Items are selected, moved and resized with a mouse, touch or the keyboard; the v
 |:-:|:-:|:-:|
 | <img src="Document/week.png" width="240" /> | <img src="Document/drag.png" width="240" /> | <img src="Document/month.png" width="240" /> |
 
+| 🌙 Dark |
+|:-:|
+| <img src="Document/dark.png" width="240" /> |
+
 ## 🚀 Quick Start
 
 Link the stylesheet in the page head.  
@@ -58,16 +62,17 @@ Show the items in an interactive component, and apply the changes the view repor
 <MusselCalendarView View="view" Date="date" FirstDayOfWeek="DayOfWeek.Monday" Items="items" />
 ```
 
-The `Example` project shows a calendar page with popups on Server and WebAssembly.  
+The `Example` project shows a calendar page with popups and the dark theme on Server, WebAssembly and Auto.  
 
 ## 🎨 Look
 
 | Part | Detail |
 |---|---|
-| Theme | CSS variables shared with MusselChart (`--mussel-primary-text`, `--mussel-muted-text`, `--mussel-grid-line`), and `--mussel-calendar-*` for the calendar |
+| Theme | CSS variables shared with MusselChart (`--mussel-primary-text`, `--mussel-muted-text`, `--mussel-grid-line`), and `--mussel-calendar-*` for the calendar; `MusselCalendar.css` adds the dark `mussel-dark` |
 | Items | `Color` of each item; timed items of one day are a dot and a time in the month view |
 | Overlaps | Side by side (`Columns`) or stacked with an offset (`Stack`) |
-| Sizes | `HourHeight`, `MonthLanes`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height` |
+| Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them |
+| Text | `Culture`, `HourFormat`, `TimeFormat`, `MonthDayFormat`, `AllDayText` and `MoreFormat` |
 
 ## ✅ Supported features
 
@@ -77,7 +82,7 @@ The `Example` project shows a calendar page with popups on Server and WebAssembl
 | **Items** | Timed and all-day items, items over several days or midnight, read-only items, overlaps, hidden counts in month cells and the current time line |
 | **Mouse and touch** | Click or drag to select a range, drag to move or resize, moving between the all-day lane and the time grid, auto scroll, Esc to cancel, and a long press to start a drag on touch |
 | **Keyboard** | Enter or Space opens an item, Alt+arrow keys move it, and Alt+Shift+Up or Down change its end |
-| **Hosting** | Interactive Server and WebAssembly |
+| **Hosting** | Interactive Server, WebAssembly (also trimmed) and Auto |
 
 The view shows `CalendarItem`s in local time and reports what the user did; saving, repeat rules, time zones and reminders belong to the application.  
 

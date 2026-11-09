@@ -33,7 +33,7 @@ app.MapGet("/render-mode/{mode}", static (string mode, string? redirect, HttpCon
 {
     context.Response.Cookies.Append(
         RenderModes.CookieName,
-        mode == RenderModes.WebAssembly ? RenderModes.WebAssembly : RenderModes.Server,
+        mode is RenderModes.WebAssembly or RenderModes.Auto ? mode : RenderModes.Server,
         new CookieOptions { Path = "/", IsEssential = true, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365) });
     return Results.LocalRedirect(String.IsNullOrEmpty(redirect) || !redirect.StartsWith('/') || redirect.StartsWith("//", StringComparison.Ordinal) ? "/" : redirect);
 });
