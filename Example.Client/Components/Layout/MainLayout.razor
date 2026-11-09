@@ -1,0 +1,16 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="layout">
+    <header class="layout-bar">
+        <span class="layout-title">MusselCalendar</span>
+        <RenderModeSwitch />
+    </header>
+    <div class="layout-body">
+        @Body
+    </div>
+</div>

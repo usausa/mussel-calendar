@@ -1,9 +1,13 @@
 <Solution>
   <Folder Name="/Example/">
+    <Project Path="Example.Client/Example.Client.csproj" />
+    <Project Path="Example/Example.csproj" DefaultStartup="true" />
   </Folder>
   <Folder Name="/Library/">
+    <Project Path="MusselCalendar/MusselCalendar.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="MusselCalendar.Tests/MusselCalendar.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

@@ -1,0 +1,115 @@
+@page "/"
+
+<PageTitle>MusselCalendar</PageTitle>
+
+<div class="app">
+    <div class="app-toolbar">
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="GoToday">今日</MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="前へ" OnClick="() => Move(-1)" />
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="次へ" OnClick="() => Move(1)" />
+        <span class="app-title">@Title</span>
+        <span class="app-spacer"></span>
+        <select class="app-select" aria-label="重なりの描き方" value="@((int)overlapMode)" @onchange="OnOverlapChanged">
+            <option value="0">横に並べる</option>
+            <option value="1">重ねる</option>
+        </select>
+        <select class="app-select" aria-label="週の始まり" value="@((int)firstDayOfWeek)" @onchange="OnFirstDayChanged">
+            <option value="0">日曜はじまり</option>
+            <option value="1">月曜はじまり</option>
+        </select>
+        <MudToggleGroup T="CalendarViewKind" @bind-Value="view" Size="Size.Small" Outlined="true">
+            <MudToggleItem Value="CalendarViewKind.Day" Text="日" />
+            <MudToggleItem Value="CalendarViewKind.Week" Text="週" />
+            <MudToggleItem Value="CalendarViewKind.Days" Text="4日" />
+            <MudToggleItem Value="CalendarViewKind.Month" Text="月" />
+        </MudToggleGroup>
+    </div>
+    <div class="app-side">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNow">作成</MudButton>
+        <MusselMiniMonth Date="date" DateChanged="d => date = d" FirstDayOfWeek="firstDayOfWeek" Highlight="Range" PreviousText="前の月" NextText="次の月" />
+        <div class="app-calendars">
+            <span class="app-heading">マイカレンダー</span>
+            @foreach (var calendar in calendars)
+            {
+                <label class="app-calendar">
+                    <input type="checkbox" checked="@calendar.Visible" style="accent-color: @calendar.Color" @onchange="e => calendar.Visible = e.Value is true" />
+                    @calendar.Name
+                </label>
+            }
+        </div>
+    </div>
+    <div class="app-main">
+        <MusselCalendarView View="view"
+                            Date="date"
+                            FirstDayOfWeek="firstDayOfWeek"
+                            OverlapMode="overlapMode"
+                            Items="VisibleItems"
+                            AllDayText="終日"
+                            MoreFormat="他 {0} 件"
+                            RangeSelected="OnRangeSelected"
+                            ItemClicked="OnItemClicked"
+                            ItemChanged="OnItemChanged"
+                            MoreClicked="OnMoreClicked"
+                            DayClicked="OnDayClicked" />
+    </div>
+</div>
+
+@if (draft is not null)
+{
+    <div class="app-backdrop" @onclick="Close"></div>
+    <MudPaper Elevation="8" Class="app-popup" Style="@PopupStyle(draft.Anchor)">
+        <MudTextField T="string" @bind-Value="draftTitle" Label="タイトルを追加" AutoFocus="true" Immediate="true" OnKeyDown="OnDraftKeyDown" />
+        <div class="app-popup-text">@RangeText(draft.Start, draft.End, draft.AllDay)</div>
+        <div class="app-choice">
+            @foreach (var calendar in calendars.Where(static x => !x.ReadOnly))
+            {
+                <label class="app-calendar">
+                    <input type="radio" name="draft-calendar" checked="@(draftCalendar == calendar)" style="accent-color: @calendar.Color" @onchange="() => draftCalendar = calendar" />
+                    @calendar.Name
+                </label>
+            }
+        </div>
+        <div class="app-popup-actions">
+            <MudButton OnClick="Close">キャンセル</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveDraft">保存</MudButton>
+        </div>
+    </MudPaper>
+}
+
+@if (selected is not null)
+{
+    <div class="app-backdrop" @onclick="Close"></div>
+    <MudPaper Elevation="8" Class="app-popup" Style="@PopupStyle(selected.Anchor)">
+        <div class="app-popup-head">
+            <span class="app-swatch" style="background-color: @(selected.Item.Color ?? DefaultColor)"></span>
+            <span class="app-popup-title">@selected.Item.Title</span>
+        </div>
+        <div class="app-popup-text">@RangeText(selected.Item.Start, selected.Item.End, selected.Item.AllDay)</div>
+        <div class="app-popup-note">@CalendarName(selected.Item)</div>
+        <div class="app-popup-actions">
+            @if (!selected.Item.ReadOnly)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteSelected">削除</MudButton>
+            }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">閉じる</MudButton>
+        </div>
+    </MudPaper>
+}
+
+@if (more is not null)
+{
+    <div class="app-backdrop" @onclick="Close"></div>
+    <MudPaper Elevation="8" Class="app-popup" Style="@PopupStyle(more.Anchor)">
+        <div class="app-popup-title">@more.Day.ToString("M月d日 (ddd)", CultureInfo.CurrentCulture)</div>
+        <div class="app-more-list">
+            @foreach (var item in more.Items)
+            {
+                <button type="button" class="app-more-item" style="--color: @(item.Color ?? DefaultColor)" @onclick="() => OpenFromMore(item)">
+                    <span class="app-swatch"></span>
+                    <span>@(item.AllDay ? "終日" : item.Start.ToString("H:mm", CultureInfo.CurrentCulture))</span>
+                    <span>@item.Title</span>
+                </button>
+            }
+        </div>
+    </MudPaper>
+}
