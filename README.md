@@ -5,7 +5,7 @@
 ## 🐚 What is this?
 
 Day, week, month, year and schedule views for Blazor, made for apps that keep schedules.  
-Items are selected, moved and resized with a mouse, touch or the keyboard; the view reports each change, and the application keeps the data. A sibling of [MusselChart](https://github.com/usausa/mussel-chart).  
+Items are selected, moved and resized with a mouse, touch or the keyboard; the view reports each change, and the application keeps the data.  
 
 | 🗓️ Week | 🖱️ Drag | 📆 Month |
 |:-:|:-:|:-:|
