@@ -21,6 +21,8 @@ public sealed partial class MusselCalendarView
 
     private readonly List<MonthWeek> weeks = [];
 
+    private readonly string idPrefix = $"mc-{Guid.NewGuid():N}";
+
     private ElementReference element;
 
     private IJSObjectReference? module;
@@ -48,6 +50,8 @@ public sealed partial class MusselCalendarView
     private int fitKey;
 
     private DateOnly today;
+
+    private DateOnly? yearFocus;
 
     private bool timeGridShown;
 
@@ -90,6 +94,9 @@ public sealed partial class MusselCalendarView
     public CalendarOverlapMode OverlapMode { get; set; } = CalendarOverlapMode.Columns;
 
     [Parameter]
+    public bool ReadOnly { get; set; }
+
+    [Parameter]
     public string AllDayText { get; set; } = "All day";
 
     [Parameter]
@@ -99,7 +106,7 @@ public sealed partial class MusselCalendarView
     public string EmptyText { get; set; } = "No events";
 
     [Parameter]
-    public string ItemCountFormat { get; set; } = "{0} events";
+    public string ItemCountFormat { get; set; } = "Events: {0}";
 
     [Parameter]
     public string HourFormat { get; set; } = "H:mm";
@@ -146,7 +153,7 @@ public sealed partial class MusselCalendarView
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private CultureInfo FormatCulture => Culture ?? CultureInfo.CurrentCulture;
+    private CultureInfo FormatCulture { get; set; } = CultureInfo.CurrentCulture;
 
     private TimeProvider Clock => TimeProvider ?? TimeProvider.System;
 
@@ -160,11 +167,15 @@ public sealed partial class MusselCalendarView
 
     private string FitText => FitsLanes ? "true" : "false";
 
+    private string ViewReadOnlyText => ReadOnly ? "true" : "false";
+
     private bool ShowsTimeGrid => View is CalendarViewKind.Day or CalendarViewKind.Week or CalendarViewKind.Days;
 
     private bool IsDual => SecondaryOffset.HasValue;
 
     private string TimeGridClass => IsDual ? "mc-timegrid mc-dual" : "mc-timegrid";
+
+    private DateOnly YearFocusDay => yearFocus is { } day && range.Contains(day) ? day : range.Contains(Date) ? Date : range.Start;
 
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-calendar {extra}" : "mussel-calendar";
 
@@ -186,6 +197,7 @@ public sealed partial class MusselCalendarView
     protected override void OnParametersSet()
     {
         today = DateOnly.FromDateTime(Now);
+        FormatCulture = CalendarCulture.Gregorian(Culture ?? CultureInfo.CurrentCulture);
         range = CalendarRange.Of(View, Date, FirstDayOfWeek, DayCount);
         weeks.Clear();
         allDayBars = [];
@@ -264,7 +276,7 @@ public sealed partial class MusselCalendarView
 
     [JSInvokable]
     public Task OnSelect(string start, string until, bool allDay, double left, double top, double width, double height) =>
-        disposed
+        disposed || ReadOnly
             ? Task.CompletedTask
             : RangeSelected.InvokeAsync(new CalendarSelectEventArgs(Parse(start), Parse(until), allDay, new CalendarAnchor(left, top, width, height)));
 
@@ -281,7 +293,7 @@ public sealed partial class MusselCalendarView
     public Task OnMove(string id, string start, string until, bool allDay)
     {
         var item = Find(id);
-        return (item is null) || item.ReadOnly || disposed
+        return (item is null) || item.ReadOnly || ReadOnly || disposed
             ? Task.CompletedTask
             : ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, Parse(start), Parse(until), allDay));
     }
@@ -290,7 +302,7 @@ public sealed partial class MusselCalendarView
     public Task OnShift(string id, int days, int minutes)
     {
         var item = Find(id);
-        if ((item is null) || item.ReadOnly || disposed)
+        if ((item is null) || item.ReadOnly || ReadOnly || disposed)
         {
             return Task.CompletedTask;
         }
@@ -303,7 +315,7 @@ public sealed partial class MusselCalendarView
     public Task OnExtend(string id, int minutes)
     {
         var item = Find(id);
-        if ((item is null) || item.ReadOnly || item.AllDay || disposed)
+        if ((item is null) || item.ReadOnly || item.AllDay || ReadOnly || disposed)
         {
             return Task.CompletedTask;
         }
@@ -375,9 +387,23 @@ public sealed partial class MusselCalendarView
     }
 
     [JSInvokable]
+    public Task OnDayClick(string date) =>
+        disposed || !TryParseDate(date, out var day) ? Task.CompletedTask : DayClicked.InvokeAsync(day);
+
+    [JSInvokable]
+    public void OnYearFocus(string date)
+    {
+        if (!disposed && TryParseDate(date, out var day))
+        {
+            yearFocus = day;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
     public Task OnMoreClick(string date, double left, double top, double width, double height)
     {
-        if (disposed || !DateOnly.TryParseExact(date, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
+        if (disposed || !TryParseDate(date, out var day))
         {
             return Task.CompletedTask;
         }
@@ -393,7 +419,13 @@ public sealed partial class MusselCalendarView
     private void OnTick(object? state) =>
         _ = InvokeAsync(() =>
         {
-            today = DateOnly.FromDateTime(Now);
+            var day = DateOnly.FromDateTime(Now);
+            if (!ShowsTimeGrid && (day == today))
+            {
+                return;
+            }
+
+            today = day;
             StateHasChanged();
         });
 
@@ -401,11 +433,17 @@ public sealed partial class MusselCalendarView
 
     private static DateTime Parse(string value) => DateTime.ParseExact(value, DateTimeFormat, CultureInfo.InvariantCulture);
 
+    private static bool TryParseDate(string value, out DateOnly day) =>
+        DateOnly.TryParseExact(value, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out day);
+
+    private static int WeekCount(DateOnly first, DateOnly start) =>
+        ((first.DayNumber - start.DayNumber) + DateTime.DaysInMonth(first.Year, first.Month) + 6) / 7;
+
     private static string IsoDate(DateOnly day) => day.ToString(DateFormat, CultureInfo.InvariantCulture);
 
     private static string IsoDateTime(DateTime value) => value.ToString(DateTimeFormat, CultureInfo.InvariantCulture);
 
-    private static string ReadOnlyText(CalendarItem item) => item.ReadOnly ? "true" : "false";
+    private string ReadOnlyText(CalendarItem item) => ReadOnly || item.ReadOnly ? "true" : "false";
 
     private static string ColorStyle(CalendarItem item) => item.Color is null ? String.Empty : $"--mc-color: {item.Color};";
 
@@ -417,9 +455,11 @@ public sealed partial class MusselCalendarView
 
     private string SecondaryHourText(int hour)
     {
-        var minutes = (hour * 60) + (int)Math.Round(SecondaryOffset.GetValueOrDefault().TotalMinutes);
+        var offset = (int)Math.Round(SecondaryOffset.GetValueOrDefault().TotalMinutes);
+        var minutes = (hour * 60) + offset;
         minutes = ((minutes % CalendarLayout.MinutesPerDay) + CalendarLayout.MinutesPerDay) % CalendarLayout.MinutesPerDay;
-        return new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).AddMinutes(minutes).ToString(HourFormat, FormatCulture);
+        var format = offset % 60 == 0 ? HourFormat : TimeFormat;
+        return new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).AddMinutes(minutes).ToString(format, FormatCulture);
     }
 
     private string ScheduleDayClass(DateOnly day) => day == today ? "mc-schedule-day mc-today" : "mc-schedule-day";
@@ -448,11 +488,17 @@ public sealed partial class MusselCalendarView
 
     private string ShortestDayName(int index) => FormatCulture.DateTimeFormat.GetShortestDayName((DayOfWeek)(((int)FirstDayOfWeek + index) % 7));
 
+    private string DayName(int index) => FormatCulture.DateTimeFormat.GetDayName((DayOfWeek)(((int)FirstDayOfWeek + index) % 7));
+
+    private string? CurrentText(DateOnly day) => day == today ? "date" : null;
+
     private string YearDayClass(DateOnly day)
     {
         var css = dayCounts.ContainsKey(day) ? "mc-year-day mc-marked" : "mc-year-day";
         return day == today ? css + " mc-today" : css;
     }
+
+    private string YearTabIndex(DateOnly day) => day == YearFocusDay ? "0" : "-1";
 
     private string YearDayLabel(DateOnly day) =>
         dayCounts.TryGetValue(day, out var count)

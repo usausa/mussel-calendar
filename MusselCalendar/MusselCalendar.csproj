@@ -14,8 +14,8 @@
   <PropertyGroup>
     <PackageId>MusselCalendar</PackageId>
     <Title>MusselCalendar</Title>
-    <Description>Calendar views for Blazor with day, week and month layouts and drag operations</Description>
-    <PackageTags>blazor calendar scheduler week month events</PackageTags>
+    <Description>Calendar views for Blazor with day, week, month, year and schedule layouts and drag operations</Description>
+    <PackageTags>blazor calendar scheduler week month year schedule agenda events</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

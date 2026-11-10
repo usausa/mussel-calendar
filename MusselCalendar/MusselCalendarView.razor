@@ -1,6 +1,6 @@
 @implements IAsyncDisposable
 
-<div @ref="element" @attributes="AdditionalAttributes" class="@RootClass" data-slot="@SlotMinutes" data-hour-height="@HourHeight" data-default-minutes="@DefaultMinutes" data-fit-lanes="@FitText" style="@RootStyle">
+<div @ref="element" @attributes="AdditionalAttributes" class="@RootClass" data-slot="@SlotMinutes" data-hour-height="@HourHeight" data-default-minutes="@DefaultMinutes" data-fit-lanes="@FitText" data-read-only="@ViewReadOnlyText" style="@RootStyle">
     @if (View == CalendarViewKind.Month)
     {
         <div class="mc-month">
@@ -18,7 +18,7 @@
                         {
                             var day = week.Start.AddDays(i);
                             <div class="@MonthCellClass(day)" data-date="@IsoDate(day)" style="grid-column: @(i + 1)">
-                                <button type="button" class="mc-date" aria-label="@DayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@MonthDateText(day)</button>
+                                <button type="button" class="mc-date" aria-label="@DayLabel(day)" aria-current="@CurrentText(day)" @onclick="() => DayClicked.InvokeAsync(day)">@MonthDateText(day)</button>
                             </div>
                         }
                         @foreach (var bar in week.Bars)
@@ -48,7 +48,7 @@
     }
     else if (View == CalendarViewKind.Schedule)
     {
-        <div class="mc-schedule">
+        <div class="mc-schedule" @key="range">
             @if (schedule.Count == 0)
             {
                 <div class="mc-schedule-empty">@EmptyText</div>
@@ -58,16 +58,17 @@
                 var day = group.Date;
                 <div class="@ScheduleDayClass(day)">
                     <div class="mc-schedule-date">
-                        <button type="button" class="mc-date" aria-label="@DayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
+                        <button type="button" class="mc-date" aria-label="@DayLabel(day)" aria-current="@CurrentText(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
                         <span class="mc-schedule-day-text">@ScheduleDayText(day)</span>
                     </div>
                     <div class="mc-schedule-items">
                         @foreach (var item in group.Items)
                         {
+                            var time = ScheduleTimeText(item, day);
                             <div class="mc-schedule-item" data-id="@item.Id" tabindex="0" role="button" aria-label="@ItemLabel(item)" style="@ColorStyle(item)">
                                 <span class="mc-dot"></span>
-                                <span class="mc-schedule-time">@ScheduleTimeText(item, day)</span>
-                                <span class="mc-schedule-title">@item.Title</span>
+                                <span class="mc-schedule-time" title="@time">@time</span>
+                                <span class="mc-schedule-title" title="@item.Title">@item.Title</span>
                             </div>
                         }
                     </div>
@@ -77,31 +78,43 @@
     }
     else if (View == CalendarViewKind.Year)
     {
-        <div class="mc-year">
+        <div class="mc-year" @key="range">
             @for (var i = 0; i < 12; i++)
             {
                 var first = range.Start.AddMonths(i);
                 var start = CalendarRange.StartOfWeek(first, FirstDayOfWeek);
+                var titleId = $"{idPrefix}-{i}";
                 <div class="mc-year-month">
-                    <div class="mc-year-title">@MonthName(first)</div>
-                    <div class="mc-year-grid">
-                        @for (var w = 0; w < 7; w++)
-                        {
-                            <div class="mc-year-weekday">@ShortestDayName(w)</div>
-                        }
-                        @for (var d = 0; d < 42; d++)
-                        {
-                            var day = start.AddDays(d);
-                            if (day.Month != first.Month)
+                    <div class="mc-year-title" id="@titleId">@MonthName(first)</div>
+                    <table class="mc-year-grid" role="grid" aria-labelledby="@titleId">
+                        <thead>
+                            <tr>
+                                @for (var w = 0; w < 7; w++)
+                                {
+                                    <th scope="col" class="mc-year-weekday" abbr="@DayName(w)">@ShortestDayName(w)</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var week = 0; week < WeekCount(first, start); week++)
                             {
-                                <span class="mc-year-blank"></span>
+                                <tr>
+                                    @for (var d = 0; d < 7; d++)
+                                    {
+                                        var day = start.AddDays((week * 7) + d);
+                                        if (day.Month != first.Month)
+                                        {
+                                            <td class="mc-year-blank"></td>
+                                        }
+                                        else
+                                        {
+                                            <td class="@YearDayClass(day)" data-date="@IsoDate(day)" tabindex="@YearTabIndex(day)" aria-current="@CurrentText(day)" aria-label="@YearDayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)"><span>@day.Day</span></td>
+                                        }
+                                    }
+                                </tr>
                             }
-                            else
-                            {
-                                <button type="button" class="@YearDayClass(day)" aria-label="@YearDayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
-                            }
-                        }
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
             }
         </div>
@@ -126,7 +139,7 @@
                     var day = range.Start.AddDays(i);
                     <div class="@DayHeadClass(day)">
                         <span class="mc-weekday">@WeekdayName(day)</span>
-                        <button type="button" class="mc-date" aria-label="@DayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
+                        <button type="button" class="mc-date" aria-label="@DayLabel(day)" aria-current="@CurrentText(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
                     </div>
                 }
             </div>
@@ -170,7 +183,7 @@
                                 <div class="@EventClass(segment)" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
                                     <span class="mc-event-title">@segment.Item.Title</span>
                                     <span class="mc-event-time">@TimeText(segment.Item.Start) – @TimeText(segment.Item.End)</span>
-                                    @if (segment.IsEnd && !segment.Item.ReadOnly)
+                                    @if (segment.IsEnd && !segment.Item.ReadOnly && !ReadOnly)
                                     {
                                         <span class="mc-resize"></span>
                                     }

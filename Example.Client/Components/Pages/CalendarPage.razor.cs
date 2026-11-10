@@ -25,6 +25,8 @@ public sealed partial class CalendarPage
 
     private bool secondary;
 
+    private bool readOnly;
+
     private CalendarSelectEventArgs? draft;
 
     private string draftTitle = string.Empty;
@@ -113,6 +115,8 @@ public sealed partial class CalendarPage
         overlapMode = (CalendarOverlapMode)Int32.Parse((string)e.Value!, CultureInfo.InvariantCulture);
 
     private void OnSecondaryChanged(ChangeEventArgs e) => secondary = (string?)e.Value == "1";
+
+    private void OnReadOnlyChanged(ChangeEventArgs e) => readOnly = (string?)e.Value == "1";
 
     private void OnDayClicked(DateOnly day)
     {

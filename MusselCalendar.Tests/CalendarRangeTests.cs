@@ -36,12 +36,27 @@ public sealed class CalendarRangeTests
     }
 
     [Fact]
-    public void ScheduleCoversOneMonthFromDate()
+    public void ScheduleCoversThirtyDaysFromDate()
     {
-        var range = CalendarRange.Of(CalendarViewKind.Schedule, new DateOnly(2026, 11, 12), DayOfWeek.Sunday, 4);
+        var range = CalendarRange.Of(CalendarViewKind.Schedule, new DateOnly(2026, 3, 31), DayOfWeek.Sunday, 4);
 
-        Assert.Equal(new DateOnly(2026, 11, 12), range.Start);
-        Assert.Equal(new DateOnly(2026, 12, 12), range.End);
+        Assert.Equal(new DateOnly(2026, 3, 31), range.Start);
+        Assert.Equal(new DateOnly(2026, 4, 30), range.End);
+    }
+
+    [Theory]
+    [InlineData("2026-01-31")]
+    [InlineData("2026-03-31")]
+    [InlineData("2026-05-31")]
+    public void SchedulePagesMeetWithoutGaps(string date)
+    {
+        var day = DateOnly.Parse(date, CultureInfo.InvariantCulture);
+        var current = CalendarRange.Of(CalendarViewKind.Schedule, day, DayOfWeek.Sunday, 4);
+        var previous = CalendarRange.Of(CalendarViewKind.Schedule, CalendarRange.Move(CalendarViewKind.Schedule, day, -1, 4), DayOfWeek.Sunday, 4);
+        var next = CalendarRange.Of(CalendarViewKind.Schedule, CalendarRange.Move(CalendarViewKind.Schedule, day, 1, 4), DayOfWeek.Sunday, 4);
+
+        Assert.Equal(current.Start, previous.End);
+        Assert.Equal(current.End, next.Start);
     }
 
     [Fact]
@@ -58,7 +73,7 @@ public sealed class CalendarRangeTests
     [InlineData(CalendarViewKind.Days, -1, "2026-11-08")]
     [InlineData(CalendarViewKind.Week, 1, "2026-11-19")]
     [InlineData(CalendarViewKind.Month, 1, "2026-12-12")]
-    [InlineData(CalendarViewKind.Schedule, -1, "2026-10-12")]
+    [InlineData(CalendarViewKind.Schedule, -1, "2026-10-13")]
     [InlineData(CalendarViewKind.Year, 1, "2027-11-12")]
     public void MoveStepsByView(CalendarViewKind view, int direction, string expected)
     {

@@ -21,6 +21,10 @@
             <option value="0">目盛り 1 つ</option>
             <option value="1">UTC も出す</option>
         </select>
+        <select class="app-select" aria-label="操作" value="@(readOnly ? "1" : "0")" @onchange="OnReadOnlyChanged">
+            <option value="0">編集できる</option>
+            <option value="1">表示だけ</option>
+        </select>
         <MudToggleGroup T="CalendarViewKind" @bind-Value="view" Size="Size.Small" Outlined="true">
             <MudToggleItem Value="CalendarViewKind.Day" Text="日" />
             <MudToggleItem Value="CalendarViewKind.Week" Text="週" />
@@ -49,11 +53,13 @@
                             Date="date"
                             FirstDayOfWeek="firstDayOfWeek"
                             OverlapMode="overlapMode"
+                            ReadOnly="readOnly"
                             Items="VisibleItems"
                             AllDayText="終日"
                             MoreFormat="他 {0} 件"
                             EmptyText="予定はありません"
                             ItemCountFormat="予定 {0} 件"
+                            ScheduleDayFormat="M月 (ddd)"
                             SecondaryOffset="SecondaryOffset"
                             TimeZoneText="@LocalZoneText"
                             SecondaryTimeZoneText="UTC"

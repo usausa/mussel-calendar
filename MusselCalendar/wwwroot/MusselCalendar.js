@@ -14,6 +14,34 @@ const format = (minutes) => {
 const dayStart = (date) => parse(`${date}T00:00:00`);
 const dayDiff = (from, to) => Math.round((dayStart(to) - dayStart(from)) / 1440);
 const addDays = (date, days) => format(dayStart(date) + (days * 1440)).slice(0, 10);
+const addMonths = (date, months) => {
+    const first = new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1 + months, 1));
+    const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+    return `${first.getUTCFullYear()}-${pad(first.getUTCMonth() + 1)}-${pad(Math.min(Number(date.slice(8, 10)), last))}`;
+};
+const targetOf = (cell, e) => {
+    const date = cell.dataset.date;
+    switch (e.key) {
+        case "ArrowLeft":
+            return addDays(date, -1);
+        case "ArrowRight":
+            return addDays(date, 1);
+        case "ArrowUp":
+            return addDays(date, -7);
+        case "ArrowDown":
+            return addDays(date, 7);
+        case "Home":
+            return addDays(date, -cell.cellIndex);
+        case "End":
+            return addDays(date, 6 - cell.cellIndex);
+        case "PageUp":
+            return addMonths(date, e.shiftKey ? -12 : -1);
+        case "PageDown":
+            return addMonths(date, e.shiftKey ? 12 : 1);
+        default:
+            return null;
+    }
+};
 const contains = (rect, x, y) => (x >= rect.left) && (x < rect.right) && (y >= rect.top) && (y < rect.bottom);
 const arrowKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
 const anchorOf = (rect) => [rect.left, rect.top, rect.width, rect.height];
@@ -77,6 +105,10 @@ class Calendar {
 
     get defaultMinutes() {
         return Number(this.root.dataset.defaultMinutes) || 60;
+    }
+
+    get readOnly() {
+        return this.root.dataset.readOnly === "true";
     }
 
     scroll(hour) {
@@ -171,6 +203,9 @@ class Calendar {
         if (item) {
             return { kind: item.classList.contains("mc-event") ? "move-time" : "move-day", item };
         }
+        if (this.readOnly) {
+            return null;
+        }
         if (target.closest(".mc-column")) {
             return { kind: "create-time" };
         }
@@ -178,6 +213,11 @@ class Calendar {
     }
 
     keyDown(e) {
+        const yearDay = e.target instanceof Element ? e.target.closest(".mc-year-day[data-date]") : null;
+        if (yearDay && this.root.contains(yearDay)) {
+            this.yearKeyDown(e, yearDay);
+            return;
+        }
         const entry = this.entryOf(e.target);
         if (entry) {
             if ((e.key === "Enter") || (e.key === " ")) {
@@ -216,6 +256,28 @@ class Calendar {
             e.preventDefault();
             this.settle(call, id);
         }
+    }
+
+    yearKeyDown(e, cell) {
+        if (e.altKey || e.ctrlKey || e.metaKey) {
+            return;
+        }
+        if ((e.key === "Enter") || (e.key === " ")) {
+            e.preventDefault();
+            this.dotNet.invokeMethodAsync("OnDayClick", cell.dataset.date);
+            return;
+        }
+        const date = targetOf(cell, e);
+        if (!date) {
+            return;
+        }
+        e.preventDefault();
+        const next = this.root.querySelector(`.mc-year-day[data-date="${date}"]`);
+        if (!next) {
+            return;
+        }
+        next.focus();
+        this.dotNet.invokeMethodAsync("OnYearFocus", date);
     }
 
     pointerDown(e) {
@@ -692,6 +754,42 @@ class Calendar {
     }
 }
 
+class MiniMonth {
+    constructor(root, dotNet) {
+        this.root = root;
+        this.dotNet = dotNet;
+        this.onKeyDown = (e) => this.keyDown(e);
+        root.addEventListener("keydown", this.onKeyDown);
+    }
+
+    keyDown(e) {
+        const cell = e.target instanceof Element ? e.target.closest("td[data-date]") : null;
+        if (!cell || !this.root.contains(cell) || e.altKey || e.ctrlKey || e.metaKey) {
+            return;
+        }
+        if ((e.key === "Enter") || (e.key === " ")) {
+            e.preventDefault();
+            this.dotNet.invokeMethodAsync("OnSelectDate", cell.dataset.date);
+            return;
+        }
+        const date = targetOf(cell, e);
+        if (!date) {
+            return;
+        }
+        e.preventDefault();
+        this.root.querySelector(`td[data-date="${date}"]:not(.mm-outside)`)?.focus();
+        this.dotNet.invokeMethodAsync("OnFocusDate", date);
+    }
+
+    focus() {
+        this.root.querySelector("td[tabindex='0']")?.focus();
+    }
+
+    dispose() {
+        this.root.removeEventListener("keydown", this.onKeyDown);
+    }
+}
+
 export function attach(dotNet, root, scrollHour) {
     const calendar = new Calendar(root, dotNet);
     calendar.scroll(scrollHour);
@@ -699,5 +797,13 @@ export function attach(dotNet, root, scrollHour) {
         scroll: (hour) => calendar.scroll(hour),
         fit: () => calendar.fit(),
         dispose: () => calendar.dispose()
+    };
+}
+
+export function attachMiniMonth(dotNet, root) {
+    const miniMonth = new MiniMonth(root, dotNet);
+    return {
+        focus: () => miniMonth.focus(),
+        dispose: () => miniMonth.dispose()
     };
 }

@@ -15,6 +15,8 @@
     --mussel-calendar-gutter: 56px;
     --mussel-calendar-hour-height: 48px;
     --mussel-calendar-lane-height: 22px;
+    --mussel-calendar-schedule-date-width: 120px;
+    --mussel-calendar-schedule-time-width: 120px;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -274,7 +276,10 @@
 }
 
 .mussel-calendar .mc-event:focus-visible,
-.mussel-calendar .mc-bar:focus-visible {
+.mussel-calendar .mc-bar:focus-visible,
+.mussel-calendar .mc-date:focus-visible,
+.mussel-calendar .mc-more:focus-visible,
+.mussel-calendar .mc-year-day:focus-visible > span {
     outline: 2px solid var(--mussel-calendar-today);
     outline-offset: 1px;
 }
@@ -400,7 +405,7 @@
 
 .mussel-calendar .mc-schedule-day {
     display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
+    grid-template-columns: var(--mussel-calendar-schedule-date-width) minmax(0, 1fr);
     align-items: start;
     padding: 6px 0;
     border-bottom: 1px solid var(--mussel-calendar-line);
@@ -431,7 +436,7 @@
 
 .mussel-calendar .mc-schedule-item {
     display: grid;
-    grid-template-columns: 8px 120px minmax(0, 1fr);
+    grid-template-columns: 8px var(--mussel-calendar-schedule-time-width) minmax(0, 1fr);
     align-items: center;
     gap: 12px;
     min-height: 32px;
@@ -492,38 +497,51 @@
 }
 
 .mussel-calendar .mc-year-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 28px);
+    border-collapse: collapse;
+    border-spacing: 0;
 }
 
 .mussel-calendar .mc-year-weekday {
+    width: 28px;
     height: 24px;
+    padding: 0;
     color: var(--mussel-calendar-muted);
     font-size: 10px;
+    font-weight: 400;
     line-height: 24px;
     text-align: center;
 }
 
-.mussel-calendar .mc-year-day {
-    position: relative;
-    width: 26px;
-    height: 26px;
-    margin: 1px;
+.mussel-calendar .mc-year-day,
+.mussel-calendar .mc-year-blank {
     padding: 0;
-    border: 0;
-    border-radius: 13px;
-    background: none;
-    color: inherit;
-    font: inherit;
-    font-size: 11px;
+}
+
+.mussel-calendar .mc-year-day {
     cursor: pointer;
 }
 
-.mussel-calendar .mc-year-day:hover {
+.mussel-calendar .mc-year-day:focus {
+    outline: none;
+}
+
+.mussel-calendar .mc-year-day > span {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin: 1px;
+    border-radius: 13px;
+    font-size: 11px;
+}
+
+.mussel-calendar .mc-year-day:hover > span {
     background-color: var(--mussel-calendar-hover);
 }
 
-.mussel-calendar .mc-year-day.mc-marked::after {
+.mussel-calendar .mc-year-day.mc-marked > span::after {
     position: absolute;
     bottom: 2px;
     left: calc(50% - 2px);
@@ -534,13 +552,13 @@
     content: "";
 }
 
-.mussel-calendar .mc-year-day.mc-today,
-.mussel-calendar .mc-year-day.mc-today:hover {
+.mussel-calendar .mc-year-day.mc-today > span,
+.mussel-calendar .mc-year-day.mc-today:hover > span {
     background-color: var(--mussel-calendar-today);
     color: var(--mussel-calendar-today-text);
 }
 
-.mussel-calendar .mc-year-day.mc-today.mc-marked::after {
+.mussel-calendar .mc-year-day.mc-today.mc-marked > span::after {
     background-color: var(--mussel-calendar-today-text);
 }
 
@@ -568,6 +586,7 @@
     --mussel-calendar-today-text: #ffffff;
     --mussel-calendar-hover: rgba(60, 64, 67, 0.08);
     --mussel-calendar-range: rgba(26, 115, 232, 0.12);
+    --mussel-calendar-mini-day-size: 26px;
     display: grid;
     gap: 4px;
     color: var(--mussel-primary-text, #3c4043);
@@ -587,15 +606,6 @@
     font-weight: 500;
 }
 
-.mussel-mini-month .mm-nav,
-.mussel-mini-month .mm-day {
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-}
-
 .mussel-mini-month .mm-nav {
     display: inline-flex;
     align-items: center;
@@ -603,7 +613,12 @@
     width: 28px;
     height: 28px;
     padding: 0;
+    border: 0;
     border-radius: 14px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
 }
 
 .mussel-mini-month .mm-nav:hover {
@@ -617,46 +632,66 @@
 }
 
 .mussel-mini-month .mm-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 28px);
-    justify-content: center;
+    margin: 0 auto;
+    border-collapse: collapse;
+    border-spacing: 0;
 }
 
 .mussel-mini-month .mm-weekday {
+    width: calc(var(--mussel-calendar-mini-day-size) + 2px);
     height: 24px;
+    padding: 0;
     color: var(--mussel-muted-text, #70757a);
     font-size: 10px;
+    font-weight: 400;
     line-height: 24px;
     text-align: center;
 }
 
 .mussel-mini-month .mm-day {
-    width: 26px;
-    height: 26px;
-    margin: 1px;
     padding: 0;
-    border-radius: 13px;
-    font-size: 11px;
+    cursor: pointer;
 }
 
-.mussel-mini-month .mm-day:hover {
+.mussel-mini-month .mm-day:focus {
+    outline: none;
+}
+
+.mussel-mini-month .mm-day > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--mussel-calendar-mini-day-size);
+    height: var(--mussel-calendar-mini-day-size);
+    margin: 1px;
+    border-radius: 50%;
+    font-size: calc(var(--mussel-calendar-mini-day-size) * 11 / 26);
+}
+
+.mussel-mini-month .mm-day:hover > span {
     background-color: var(--mussel-calendar-hover);
 }
 
-.mussel-mini-month .mm-outside {
+.mussel-mini-month .mm-nav:focus-visible,
+.mussel-mini-month .mm-day:focus-visible > span {
+    outline: 2px solid var(--mussel-calendar-today);
+    outline-offset: 1px;
+}
+
+.mussel-mini-month .mm-outside > span {
     color: var(--mussel-muted-text, #70757a);
 }
 
-.mussel-mini-month .mm-in-range {
+.mussel-mini-month .mm-in-range > span {
     background-color: var(--mussel-calendar-range);
 }
 
-.mussel-mini-month .mm-selected {
+.mussel-mini-month .mm-selected > span {
     box-shadow: inset 0 0 0 1px var(--mussel-calendar-today);
 }
 
-.mussel-mini-month .mm-today,
-.mussel-mini-month .mm-today:hover {
+.mussel-mini-month .mm-today > span,
+.mussel-mini-month .mm-today:hover > span {
     background-color: var(--mussel-calendar-today);
     color: var(--mussel-calendar-today-text);
 }

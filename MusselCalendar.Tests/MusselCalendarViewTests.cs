@@ -301,6 +301,13 @@ public sealed class MusselCalendarViewTests : BunitContext
 
         Assert.Equal(12, cut.FindAll(".mc-year-month").Count);
         Assert.Equal(365, cut.FindAll(".mc-year-day").Count);
+        Assert.Equal(["2026-11-12"], cut.FindAll(".mc-year-day[tabindex='0']").Select(static x => x.GetAttribute("data-date")));
+        var grids = cut.FindAll("table.mc-year-grid[role='grid']");
+        Assert.Equal(12, grids.Count);
+        Assert.Equal(cut.FindAll(".mc-year-title")[10].Id, grids[10].GetAttribute("aria-labelledby"));
+        var header = cut.Find("th.mc-year-weekday");
+        Assert.Equal(("col", "Sunday", "Su"), (header.GetAttribute("scope"), header.GetAttribute("abbr"), header.TextContent));
+        Assert.Equal(5, grids[0].QuerySelectorAll("tbody tr").Length);
         var marked = cut.FindAll(".mc-year-day.mc-marked");
         Assert.Equal(3, marked.Count);
         Assert.Equal("Thursday, 12 November 2026, 2 items", marked[0].GetAttribute("aria-label"));
@@ -308,6 +315,64 @@ public sealed class MusselCalendarViewTests : BunitContext
         marked[1].Click();
 
         Assert.Equal(new DateOnly(2026, 11, 13), clicked);
+    }
+
+    [Fact]
+    public async Task YearFocusAndEnterComeFromScript()
+    {
+        DateOnly? clicked = null;
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Year)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.DayClicked, day => clicked = day));
+
+        await cut.InvokeAsync(() => cut.Instance.OnYearFocus("2026-03-05"));
+        cut.Render(static _ => { });
+
+        Assert.Equal(["2026-03-05"], cut.FindAll(".mc-year-day[tabindex='0']").Select(static x => x.GetAttribute("data-date")));
+
+        await cut.InvokeAsync(() => cut.Instance.OnDayClick("2026-03-05"));
+
+        Assert.Equal(new DateOnly(2026, 3, 5), clicked);
+    }
+
+    [Fact]
+    public async Task ReadOnlyViewStopsChanges()
+    {
+        var raised = new List<string>();
+        CalendarItemEventArgs? opened = null;
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.ReadOnly, true)
+            .Add(static p => p.Items, new[] { Item("a", 9, 10) })
+            .Add(static p => p.RangeSelected, _ => raised.Add("select"))
+            .Add(static p => p.ItemChanged, _ => raised.Add("change"))
+            .Add(static p => p.ItemClicked, e => opened = e));
+
+        await cut.InvokeAsync(() => cut.Instance.OnSelect("2026-11-12T09:00:00", "2026-11-12T10:00:00", false, 0, 0, 0, 0));
+        await cut.InvokeAsync(() => cut.Instance.OnMove("a", "2026-11-13T12:00:00", "2026-11-13T13:00:00", false));
+        await cut.InvokeAsync(() => cut.Instance.OnShift("a", 1, 0));
+        await cut.InvokeAsync(() => cut.Instance.OnExtend("a", 15));
+        await cut.InvokeAsync(() => cut.Instance.OnItemClick("a", 0, 0, 0, 0));
+
+        Assert.Empty(raised);
+        Assert.Equal("a", opened?.Item.Id);
+        Assert.Equal("true", cut.Find(".mussel-calendar").GetAttribute("data-read-only"));
+        Assert.Equal("true", cut.Find(".mc-event").GetAttribute("data-read-only"));
+        Assert.Empty(cut.FindAll(".mc-resize"));
+    }
+
+    [Fact]
+    public void TodayDateIsCurrent()
+    {
+        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 10, 0, 0, TimeSpan.Zero) };
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.TimeProvider, clock));
+
+        var current = cut.FindAll("[aria-current='date']");
+        Assert.Single(current);
+        Assert.Equal("12", current[0].TextContent);
     }
 
     [Fact]
@@ -326,6 +391,52 @@ public sealed class MusselCalendarViewTests : BunitContext
         Assert.Equal(23, secondary.Count);
         Assert.Equal("15:30", secondary[0].TextContent);
         Assert.Equal("0:30", secondary[9].TextContent);
+    }
+
+    [Fact]
+    public void SecondaryOffsetWithMinutesUsesTimeFormat()
+    {
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo("en-US"))
+            .Add(static p => p.HourFormat, "h tt")
+            .Add(static p => p.TimeFormat, "h:mm tt")
+            .Add(static p => p.SecondaryOffset, new TimeSpan(5, 30, 0)));
+
+        Assert.Equal("1 AM", cut.FindAll(".mc-time:not(.mc-secondary)")[0].TextContent);
+        Assert.Equal("6:30 AM", cut.FindAll(".mc-time.mc-secondary")[0].TextContent);
+    }
+
+    [Fact]
+    public void YearUsesGregorianMonthNames()
+    {
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Year)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo("fa-IR")));
+
+        Assert.Equal("ژانویه", cut.FindAll(".mc-year-title")[0].TextContent);
+    }
+
+    [Fact]
+    public async Task YearRedrawsOnlyWhenTheDayChanges()
+    {
+        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 10, 0, 0, TimeSpan.Zero) };
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Year)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.TimeProvider, clock));
+        var renders = cut.RenderCount;
+
+        clock.Now = clock.Now.AddMinutes(1);
+        clock.Fire();
+        await cut.InvokeAsync(static () => { });
+        Assert.Equal(renders, cut.RenderCount);
+
+        clock.Now = clock.Now.AddDays(1);
+        clock.Fire();
+
+        await cut.WaitForAssertionAsync(() => Assert.Equal("2026-11-13", cut.Find(".mc-year-day.mc-today").GetAttribute("data-date")));
     }
 
     [Fact]

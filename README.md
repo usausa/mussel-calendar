@@ -54,7 +54,7 @@ Show the items in an interactive component, and apply the changes the view repor
 }
 ```
 
-`View` switches the day, week, N days, month, year and schedule views, `CalendarRange.Move` gives the date of the next page, and `MusselMiniMonth` picks a date.  
+`View` switches the day, week, N days, month, year and schedule views, `CalendarRange.Move` gives the date of the next page, and `MusselMiniMonth` picks a date. Each of them also works alone: `MusselMiniMonth` with `@bind-Date` and `@bind-Month`, and `MusselCalendarView` with `ReadOnly` only to show items.  
 
 ```razor
 <MusselMiniMonth @bind-Date="date" FirstDayOfWeek="DayOfWeek.Monday" Highlight="CalendarRange.Of(view, date, DayOfWeek.Monday, 4)" />
@@ -71,17 +71,17 @@ The `Example` project shows a calendar page with popups and the dark theme on Se
 | Theme | CSS variables shared with MusselChart (`--mussel-primary-text`, `--mussel-muted-text`, `--mussel-grid-line`), and `--mussel-calendar-*` for the calendar; `MusselCalendar.css` adds the dark `mussel-dark` |
 | Items | `Color` of each item; timed items of one day are a dot and a time in the month view |
 | Overlaps | Side by side (`Columns`) or stacked with an offset (`Stack`) |
-| Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them |
-| Text | `Culture`, `HourFormat`, `TimeFormat`, `MonthDayFormat`, `ScheduleDayFormat`, `AllDayText`, `MoreFormat`, `EmptyText` and `ItemCountFormat` |
+| Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them; `--mussel-calendar-schedule-date-width` and `--mussel-calendar-schedule-time-width` for the schedule; `--mussel-calendar-mini-day-size` for the mini month |
+| Text | `Culture`, `HourFormat`, `TimeFormat`, `MonthDayFormat`, `ScheduleDayFormat`, `AllDayText`, `MoreFormat`, `EmptyText`, `ItemCountFormat`, `TimeZoneText` and `SecondaryTimeZoneText` |
 
 ## ✅ Supported features
 
 | Category | Detail |
 |---|---|
 | **Views** | Day, week, N days, month, year and schedule, any first day of the week, hour labels of a second time zone, and a mini month that marks the shown range |
-| **Items** | Timed and all-day items, items over several days or midnight, read-only items, overlaps, hidden counts in month cells, marks of days with items in the year and the current time line |
+| **Items** | Timed and all-day items, items over several days or midnight, read-only items or a read-only view, overlaps, hidden counts in month cells, marks of days with items in the year and the current time line |
 | **Mouse and touch** | Click or drag to select a range, drag to move or resize, moving between the all-day lane and the time grid, auto scroll, Esc to cancel, and a long press to start a drag on touch |
-| **Keyboard** | Enter or Space opens an item, Alt+arrow keys move it, and Alt+Shift+Up or Down change its end |
+| **Keyboard** | Enter or Space opens an item, Alt+arrow keys move it, Alt+Shift+Up or Down change its end, and arrow keys, Home, End, Page Up and Page Down move between the days of the mini month and the year, which are ARIA grids |
 | **Hosting** | Interactive Server, WebAssembly (also trimmed) and Auto |
 
 The view shows `CalendarItem`s in local time and reports what the user did; saving, repeat rules, time zones and reminders belong to the application.  

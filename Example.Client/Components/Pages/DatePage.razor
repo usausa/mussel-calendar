@@ -1,0 +1,8 @@
+@page "/date"
+
+<PageTitle>MusselCalendar</PageTitle>
+
+<div class="date-page">
+    <MusselMiniMonth @bind-Date="date" @bind-Month="ShownMonth" PreviousText="前の月" NextText="次の月" />
+    <MusselMiniMonth @bind-Date="date" Month="NextMonth" MonthChanged="OnNextMonthChanged" PreviousText="前の月" NextText="次の月" />
+</div>

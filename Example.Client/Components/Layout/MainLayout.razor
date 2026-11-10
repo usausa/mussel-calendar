@@ -8,6 +8,11 @@
 <div class="@LayoutClass">
     <header class="layout-bar">
         <span class="layout-title">MusselCalendar</span>
+        <nav class="page-switch" aria-label="ページ">
+            <NavLink class="page" href="" Match="NavLinkMatch.All">カレンダー</NavLink>
+            <NavLink class="page" href="date">日付の選択</NavLink>
+        </nav>
+        <span class="layout-spacer"></span>
         <MudIconButton Icon="@DarkIcon" Color="Color.Inherit" Size="Size.Small" aria-label="暗い配色" aria-pressed="@DarkText" OnClick="ToggleDark" />
         <RenderModeSwitch />
     </header>

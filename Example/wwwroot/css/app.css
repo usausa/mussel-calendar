@@ -20,17 +20,22 @@ body {
 }
 
 .layout-title {
-    flex: 1 1 auto;
     font-size: 18px;
     font-weight: 500;
 }
 
-.mode-switch {
+.layout-spacer {
+    flex: 1 1 auto;
+}
+
+.mode-switch,
+.page-switch {
     display: flex;
     gap: 4px;
 }
 
-.mode-switch .mode {
+.mode-switch .mode,
+.page-switch .page {
     padding: 4px 10px;
     border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 4px;
@@ -39,7 +44,8 @@ body {
     text-decoration: none;
 }
 
-.mode-switch .mode.active {
+.mode-switch .mode.active,
+.page-switch .page.active {
     background-color: #ffffff;
     color: #1a73e8;
 }
@@ -197,6 +203,19 @@ body {
 
 .app-more-item:hover {
     background-color: var(--mud-palette-action-default-hover);
+}
+
+.date-page {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: start;
+    gap: 32px;
+    padding: 24px 16px;
+}
+
+.date-page .mussel-mini-month {
+    --mussel-calendar-mini-day-size: 40px;
 }
 
 @media (max-width: 720px) {
