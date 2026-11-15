@@ -194,18 +194,24 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     private async Task AttachAsync()
     {
-        module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
-        if (disposed)
+        try
         {
-            await ReleaseAsync().ConfigureAwait(true);
-            return;
-        }
+            module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
+            if (disposed)
+            {
+                await ReleaseAsync().ConfigureAwait(true);
+                return;
+            }
 
-        reference = DotNetObjectReference.Create(this);
-        instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", reference, element).ConfigureAwait(true);
-        if (disposed)
+            reference = DotNetObjectReference.Create(this);
+            instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", reference, element).ConfigureAwait(true);
+            if (disposed)
+            {
+                await ReleaseAsync().ConfigureAwait(true);
+            }
+        }
+        catch (JSDisconnectedException)
         {
-            await ReleaseAsync().ConfigureAwait(true);
         }
     }
 
@@ -215,15 +221,30 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         var loaded = module;
         instance = null;
         module = null;
-        if (attached is not null)
+        try
         {
-            await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
-            await attached.DisposeAsync().ConfigureAwait(true);
-        }
+            if (attached is not null)
+            {
+                await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
+                await attached.DisposeAsync().ConfigureAwait(true);
+            }
 
-        if (loaded is not null)
+            if (loaded is not null)
+            {
+                await loaded.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+        catch (JSDisconnectedException)
         {
-            await loaded.DisposeAsync().ConfigureAwait(true);
+        }
+        catch (JSException)
+        {
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 

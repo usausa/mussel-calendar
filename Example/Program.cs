@@ -15,11 +15,6 @@ builder.Services.AddMudServices();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseWebAssemblyDebugging();
-}
-
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
     DefaultRequestCulture = new RequestCulture("ja-JP"),
@@ -35,7 +30,7 @@ app.MapGet("/render-mode/{mode}", static (string mode, string? redirect, HttpCon
         RenderModes.CookieName,
         mode is RenderModes.WebAssembly or RenderModes.Auto ? mode : RenderModes.Server,
         new CookieOptions { Path = "/", IsEssential = true, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365) });
-    return Results.LocalRedirect(String.IsNullOrEmpty(redirect) || !redirect.StartsWith('/') || redirect.StartsWith("//", StringComparison.Ordinal) ? "/" : redirect);
+    return Results.LocalRedirect(String.IsNullOrEmpty(redirect) || !redirect.StartsWith('/', StringComparison.Ordinal) || redirect.StartsWith("//", StringComparison.Ordinal) ? "/" : redirect);
 });
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
