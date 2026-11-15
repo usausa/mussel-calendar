@@ -1,6 +1,7 @@
 # MusselCalendar - Calendar for Blazor
 
 [![NuGet](https://img.shields.io/nuget/v/MusselCalendar.svg)](https://www.nuget.org/packages/MusselCalendar/)
+[![Demo](https://img.shields.io/badge/demo-WebAssembly-blue.svg)](https://usausa.github.io/mussel-calendar/)
 
 ## 🐚 What is this?
 
