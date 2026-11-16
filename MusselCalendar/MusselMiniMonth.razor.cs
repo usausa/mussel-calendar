@@ -91,7 +91,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     private DateOnly Start => CalendarRange.StartOfWeek(month, FirstDayOfWeek);
 
-    private DateOnly FocusDay => focusDay is { } day && InMonth(day) ? day : InMonth(Date) ? Date : month;
+    private DateOnly FocusDay => (focusDay is { } day) && InMonth(day) ? day : InMonth(Date) ? Date : month;
 
     public override Task SetParametersAsync(ParameterView parameters)
     {
@@ -143,7 +143,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
                 return;
             }
 
-            if (focusPending && (instance is not null) && focusDay is { } day && InMonth(day))
+            if (focusPending && (instance is not null) && (focusDay is { } day) && InMonth(day))
             {
                 focusPending = false;
                 await instance.InvokeVoidAsync("focus").ConfigureAwait(true);
@@ -182,7 +182,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         if (first != month)
         {
             focusPending = true;
-            await ShowAsync(first).ConfigureAwait(true);
+            await ReportAsync(() => ShowAsync(first)).ConfigureAwait(true);
         }
 
         StateHasChanged();
@@ -190,7 +190,24 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     [JSInvokable]
     public Task OnSelectDate(string date) =>
-        disposed || !TryParse(date, out var day) ? Task.CompletedTask : SelectAsync(day);
+        disposed || !TryParse(date, out var day) ? Task.CompletedTask : ReportAsync(() => SelectAsync(day));
+
+    private async Task ReportAsync(Func<Task> operation)
+    {
+        try
+        {
+            await operation().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not (JSDisconnectedException or OperationCanceledException))
+        {
+            if (!disposed)
+            {
+                await DispatchExceptionAsync(ex).ConfigureAwait(true);
+            }
+
+            throw;
+        }
+    }
 
     private async Task AttachAsync()
     {
@@ -262,6 +279,12 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     private Task ShiftAsync(int months)
     {
         focusPending = false;
+        var target = (month.Year * 12) + month.Month - 1 + months;
+        if ((target < DateOnly.MinValue.Year * 12) || (target > (DateOnly.MaxValue.Year * 12) + 11))
+        {
+            return Task.CompletedTask;
+        }
+
         return ShowAsync(month.AddMonths(months));
     }
 
@@ -301,7 +324,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     private string DayClass(DateOnly day)
     {
         var css = InMonth(day) ? "mm-day" : "mm-day mm-outside";
-        if (Highlight is { } value && value.Contains(day))
+        if ((Highlight is { } value) && value.Contains(day))
         {
             css += " mm-in-range";
         }

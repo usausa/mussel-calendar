@@ -2,7 +2,7 @@
 
 ## 🗓️ MusselCalendarView
 
-The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element.  
+The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached, and so does the root of `MusselMiniMonth`.  
 
 | Name | Type | Default | Description |
 |---|---|---|---|
@@ -23,7 +23,7 @@ The calendar component. It fills the height of its parent, and other attributes 
 | `EmptyText` | `string` | `No events` | The text of a schedule without items |
 | `ItemCountFormat` | `string` | `Events: {0}` | The count of items added to the label of a day in the year view |
 | `HourFormat`, `TimeFormat` | `string` | `H:mm` | Formats of the hour labels and of the times of items, such as `h tt` and `h:mm tt`. A single custom specifier needs `%` (`%H`), because one letter alone is a standard format |
-| `MonthDayFormat` | `string` | `M/d` | The format of the first day of a month in the month view, such as `MMM d` |
+| `MonthDayFormat` | `string?` | `null` | The format of the first day of a month in the month view, such as `MMM d`; unset writes `M/d` or `d/M` in the order of the culture |
 | `ScheduleDayFormat` | `string` | `MMM, ddd` | The format beside each date of the schedule |
 | `SecondaryOffset` | `TimeSpan?` | `null` | The difference of a second time zone from the shown hours, such as `-9:00` for UTC beside Japan time; adds its hour labels, none when `null` |
 | `TimeZoneText`, `SecondaryTimeZoneText` | `string?` | `null` | Labels above the two columns of hour labels, shown with `SecondaryOffset` |
@@ -46,6 +46,7 @@ The view does not convert time zones: give `SecondaryOffset` for the shown range
 `ItemChanged` does not change the item. Set the new values on the item to accept them; otherwise the item stays where it was.  
 Read-only items raise `ItemClicked` only. With `ReadOnly`, every item does so, and `RangeSelected` is not raised; dates and hidden counts still raise their events.  
 `Anchor` (`CalendarAnchor` with `Left`, `Top`, `Width` and `Height`) is the place of the item, the range or the hidden count in the viewport, for a popup.  
+An exception from a handler reaches `ErrorBoundary`, as with an ordinary Blazor event. The same goes for `DateChanged` and `MonthChanged` of `MusselMiniMonth`.  
 
 ### Operations
 
@@ -57,12 +58,12 @@ Read-only items raise `ItemClicked` only. With `ReadOnly`, every item does so, a
 | Change the end | Drag the bottom edge | Long press on the bottom edge and drag | Alt+Shift+Up or Down |
 | Cancel a drag | Esc | | |
 
-On touch, a long press released without moving acts as a tap.  
+On touch, a long press is 400 ms, and one released without moving acts as a tap.  
 The schedule and the year views do not select or move: items of the schedule open by a click, a tap, Enter or Space, and a day of the year view raises `DayClicked`.  
 Each month of the year view is an ARIA grid named by its title. Tab stops at one day of the year; arrow keys move by a day (Left or Right) or a week (Up or Down), Home and End to the first and last day of the week, Page Up and Page Down by a month within the year, and Enter or Space raises `DayClicked`. The date of today has `aria-current="date"` in every view.  
 
 A timed item dropped on the all-day lane becomes an all-day item of that day, and an all-day item dropped on the time grid gets `DefaultMinutes`.  
-A drag near the top or bottom of the time grid scrolls it. On touch, moving before the long press scrolls the page.  
+A drag near the top or bottom of the time grid scrolls it; on touch, only after the finger moves. On touch, moving before the long press scrolls the page.  
 
 ## 📅 MusselMiniMonth
 
@@ -89,7 +90,7 @@ The days are an ARIA grid like the date picker of the WAI-ARIA Authoring Practic
 | `Title` | Required |
 | `Start`, `End` | Local times; `End` is not included, so an all-day item of one day ends at 0:00 of the next day |
 | `AllDay` | Shows the item in the all-day lane |
-| `Color` | A CSS color; `--mussel-calendar-event` when `null` |
+| `Color` | A CSS color; `--mussel-calendar-event` when `null`, or when it has characters other than letters, digits, space and `# ( ) , . % -` |
 | `ReadOnly` | The item cannot be moved or resized |
 
 Timed items of 24 hours or more are shown in the all-day lane, and timed items over midnight are split by day.  

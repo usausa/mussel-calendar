@@ -15,7 +15,7 @@ public sealed partial class CalendarPage
 
     private readonly Dictionary<string, SampleCalendar> owners = new(StringComparer.Ordinal);
 
-    private CalendarViewKind view = CalendarViewKind.Week;
+    private CalendarViewKind view = CalendarViewKind.Month;
 
     private DateOnly date = DateOnly.FromDateTime(DateTime.Today);
 

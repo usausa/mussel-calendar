@@ -46,8 +46,11 @@ public readonly struct CalendarRange : IEquatable<CalendarRange>
             _ => day.AddMonths(direction)
         };
 
-    public static DateOnly StartOfWeek(DateOnly day, DayOfWeek firstDayOfWeek) =>
-        day.AddDays(-(((int)day.DayOfWeek - (int)firstDayOfWeek + 7) % 7));
+    public static DateOnly StartOfWeek(DateOnly day, DayOfWeek firstDayOfWeek)
+    {
+        var offset = ((int)day.DayOfWeek - (int)firstDayOfWeek + 7) % 7;
+        return day.DayNumber >= offset ? day.AddDays(-offset) : DateOnly.MinValue;
+    }
 
     public bool Contains(DateOnly day) => (day >= Start) && (day < End);
 

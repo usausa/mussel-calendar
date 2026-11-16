@@ -115,7 +115,7 @@ public sealed partial class MusselCalendarView
     public string TimeFormat { get; set; } = "H:mm";
 
     [Parameter]
-    public string MonthDayFormat { get; set; } = "M/d";
+    public string? MonthDayFormat { get; set; }
 
     [Parameter]
     public string ScheduleDayFormat { get; set; } = "MMM, ddd";
@@ -175,7 +175,7 @@ public sealed partial class MusselCalendarView
 
     private string TimeGridClass => IsDual ? "mc-timegrid mc-dual" : "mc-timegrid";
 
-    private DateOnly YearFocusDay => yearFocus is { } day && range.Contains(day) ? day : range.Contains(Date) ? Date : range.Start;
+    private DateOnly YearFocusDay => (yearFocus is { } day) && range.Contains(day) ? day : range.Contains(Date) ? Date : range.Start;
 
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-calendar {extra}" : "mussel-calendar";
 
@@ -278,7 +278,7 @@ public sealed partial class MusselCalendarView
     public Task OnSelect(string start, string until, bool allDay, double left, double top, double width, double height) =>
         disposed || ReadOnly
             ? Task.CompletedTask
-            : RangeSelected.InvokeAsync(new CalendarSelectEventArgs(Parse(start), Parse(until), allDay, new CalendarAnchor(left, top, width, height)));
+            : ReportAsync(() => RangeSelected.InvokeAsync(new CalendarSelectEventArgs(Parse(start), Parse(until), allDay, new CalendarAnchor(left, top, width, height))));
 
     [JSInvokable]
     public Task OnItemClick(string id, double left, double top, double width, double height)
@@ -286,7 +286,7 @@ public sealed partial class MusselCalendarView
         var item = Find(id);
         return (item is null) || disposed
             ? Task.CompletedTask
-            : ItemClicked.InvokeAsync(new CalendarItemEventArgs(item, new CalendarAnchor(left, top, width, height)));
+            : ReportAsync(() => ItemClicked.InvokeAsync(new CalendarItemEventArgs(item, new CalendarAnchor(left, top, width, height))));
     }
 
     [JSInvokable]
@@ -295,7 +295,7 @@ public sealed partial class MusselCalendarView
         var item = Find(id);
         return (item is null) || item.ReadOnly || ReadOnly || disposed
             ? Task.CompletedTask
-            : ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, Parse(start), Parse(until), allDay));
+            : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, DateTime.SpecifyKind(Parse(start), item.Start.Kind), DateTime.SpecifyKind(Parse(until), item.End.Kind), allDay)));
     }
 
     [JSInvokable]
@@ -308,7 +308,7 @@ public sealed partial class MusselCalendarView
         }
 
         var offset = TimeSpan.FromDays(days) + TimeSpan.FromMinutes(minutes);
-        return ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start + offset, item.End + offset, item.AllDay));
+        return ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start + offset, item.End + offset, item.AllDay)));
     }
 
     [JSInvokable]
@@ -323,7 +323,7 @@ public sealed partial class MusselCalendarView
         var end = item.End.AddMinutes(minutes);
         return end <= item.Start
             ? Task.CompletedTask
-            : ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, end, false));
+            : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, end, false)));
     }
 
     [JSInvokable]
@@ -339,6 +339,23 @@ public sealed partial class MusselCalendarView
         {
             BuildMonth();
             StateHasChanged();
+        }
+    }
+
+    private async Task ReportAsync(Func<Task> operation)
+    {
+        try
+        {
+            await operation().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not (JSDisconnectedException or OperationCanceledException))
+        {
+            if (!disposed)
+            {
+                await DispatchExceptionAsync(ex).ConfigureAwait(true);
+            }
+
+            throw;
         }
     }
 
@@ -409,7 +426,7 @@ public sealed partial class MusselCalendarView
 
     [JSInvokable]
     public Task OnDayClick(string date) =>
-        disposed || !TryParseDate(date, out var day) ? Task.CompletedTask : DayClicked.InvokeAsync(day);
+        disposed || !TryParseDate(date, out var day) ? Task.CompletedTask : ReportAsync(() => DayClicked.InvokeAsync(day));
 
     [JSInvokable]
     public void OnYearFocus(string date)
@@ -434,7 +451,7 @@ public sealed partial class MusselCalendarView
             .OrderBy(static x => !x.AllDay)
             .ThenBy(static x => x.Start)
             .ToList();
-        return MoreClicked.InvokeAsync(new CalendarMoreEventArgs(day, items, new CalendarAnchor(left, top, width, height)));
+        return ReportAsync(() => MoreClicked.InvokeAsync(new CalendarMoreEventArgs(day, items, new CalendarAnchor(left, top, width, height))));
     }
 
     private void OnTick(object? state) =>
@@ -466,7 +483,25 @@ public sealed partial class MusselCalendarView
 
     private string ReadOnlyText(CalendarItem item) => ReadOnly || item.ReadOnly ? "true" : "false";
 
-    private static string ColorStyle(CalendarItem item) => item.Color is null ? String.Empty : $"--mc-color: {item.Color};";
+    private static string ColorStyle(CalendarItem item) => (item.Color is { } color) && IsSafeColor(color) ? $"--mc-color: {color};" : String.Empty;
+
+    private static bool IsSafeColor(string value)
+    {
+        if (value.Length is 0 or > 64)
+        {
+            return false;
+        }
+
+        foreach (var ch in value)
+        {
+            if (!char.IsAsciiLetterOrDigit(ch) && (ch is not ('#' or '(' or ')' or ',' or '.' or '%' or ' ' or '-')))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private string WeekdayName(DateOnly day) => FormatCulture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek);
 
@@ -530,7 +565,7 @@ public sealed partial class MusselCalendarView
 
     private string MoreText(int count) => String.Format(FormatCulture, MoreFormat, count);
 
-    private string MonthDateText(DateOnly day) => day.Day == 1 ? day.ToString(MonthDayFormat, FormatCulture) : day.Day.ToString(FormatCulture);
+    private string MonthDateText(DateOnly day) => day.Day == 1 ? day.ToString(MonthDayFormat ?? (CalendarCulture.IsDayFirst(FormatCulture) ? "d/M" : "M/d"), FormatCulture) : day.Day.ToString(FormatCulture);
 
     private string ItemLabel(CalendarItem item) =>
         item.AllDay

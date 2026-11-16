@@ -47,6 +47,21 @@ public sealed class MusselMiniMonthTests : BunitContext
     }
 
     [Fact]
+    public void TheFirstMonthDoesNotGoBack()
+    {
+        DateOnly? shown = null;
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, DateOnly.MinValue)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture)
+            .Add(static p => p.MonthChanged, month => shown = month));
+
+        cut.FindAll(".mm-nav")[0].Click();
+
+        Assert.Null(shown);
+        Assert.Equal(42, cut.FindAll(".mm-day").Count);
+    }
+
+    [Fact]
     public void ClickSelectsDay()
     {
         DateOnly? selected = null;
@@ -144,6 +159,20 @@ public sealed class MusselMiniMonthTests : BunitContext
         clock.Fire();
 
         cut.WaitForAssertion(() => Assert.Equal("13", cut.Find(".mm-today").TextContent));
+    }
+
+    [Fact]
+    public async Task AnExceptionInAHandlerCalledFromTheScriptReachesTheRenderer()
+    {
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.DateChanged, static _ => throw new InvalidOperationException("app")));
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => cut.Instance.OnSelectDate("2026-11-20")));
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.Same(Renderer.UnhandledException, ended);
+        Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
     }
 
     [Fact]

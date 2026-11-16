@@ -23,7 +23,7 @@
                         }
                         @foreach (var bar in week.Bars)
                         {
-                            <div class="@MonthBarClass(bar)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 1, 2)">
+                            <div class="@MonthBarClass(bar)" @key="bar.Item.Id" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 1, 2)">
                                 @if (IsChip(bar))
                                 {
                                     <span class="mc-dot"></span>
@@ -56,7 +56,7 @@
             @foreach (var group in schedule)
             {
                 var day = group.Date;
-                <div class="@ScheduleDayClass(day)">
+                <div class="@ScheduleDayClass(day)" @key="day">
                     <div class="mc-schedule-date">
                         <button type="button" class="mc-date" aria-label="@DayLabel(day)" aria-current="@CurrentText(day)" @onclick="() => DayClicked.InvokeAsync(day)">@day.Day</button>
                         <span class="mc-schedule-day-text">@ScheduleDayText(day)</span>
@@ -65,7 +65,7 @@
                         @foreach (var item in group.Items)
                         {
                             var time = ScheduleTimeText(item, day);
-                            <div class="mc-schedule-item" data-id="@item.Id" tabindex="0" role="button" aria-label="@ItemLabel(item)" style="@ColorStyle(item)">
+                            <div class="mc-schedule-item" @key="item.Id" data-id="@item.Id" tabindex="0" role="button" aria-label="@ItemLabel(item)" style="@ColorStyle(item)">
                                 <span class="mc-dot"></span>
                                 <span class="mc-schedule-time" title="@time">@time</span>
                                 <span class="mc-schedule-title" title="@item.Title">@item.Title</span>
@@ -151,7 +151,7 @@
                 }
                 @foreach (var bar in allDayBars)
                 {
-                    <div class="@BarClass(bar)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
+                    <div class="@BarClass(bar)" @key="bar.Item.Id" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
                         <span class="mc-bar-title">@bar.Item.Title</span>
                     </div>
                 }
@@ -180,7 +180,7 @@
                                     continue;
                                 }
 
-                                <div class="@EventClass(segment)" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
+                                <div class="@EventClass(segment)" @key="segment.Item.Id" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
                                     <span class="mc-event-title">@segment.Item.Title</span>
                                     <span class="mc-event-time">@TimeText(segment.Item.Start) – @TimeText(segment.Item.End)</span>
                                     @if (segment.IsEnd && !segment.Item.ReadOnly && !ReadOnly)

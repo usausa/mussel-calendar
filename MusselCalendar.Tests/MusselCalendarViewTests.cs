@@ -53,6 +53,23 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
+    public void ColorsThatAreNotSafeInStylesAreLeftOut()
+    {
+        var plain = Item("a", 9, 10);
+        plain.Color = "#5794F2";
+        var hostile = Item("b", 11, 12);
+        hostile.Color = "red; position: fixed; inset: 0; z-index: 9999";
+
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, [plain, hostile]));
+
+        var styles = cut.FindAll(".mc-event").Select(static x => x.GetAttribute("style") ?? string.Empty).ToList();
+        Assert.Contains(styles, static x => x.Contains("--mc-color: #5794F2;", StringComparison.Ordinal));
+        Assert.DoesNotContain(styles, static x => x.Contains("position", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ShortItemUsesOneLine()
     {
         CalendarItem[] items = [Item("a", 9, 9.25)];
@@ -79,6 +96,23 @@ public sealed class MusselCalendarViewTests : BunitContext
         Assert.NotNull(changed);
         Assert.Same(item, changed.Item);
         Assert.Equal((new DateTime(2026, 11, 13, 12, 0, 0), new DateTime(2026, 11, 13, 13, 0, 0), false), (changed.Start, changed.End, changed.AllDay));
+    }
+
+    [Fact]
+    public async Task MoveKeepsTheKindOfTheTimes()
+    {
+        var item = Item("a", 9, 10);
+        item.Start = DateTime.SpecifyKind(item.Start, DateTimeKind.Local);
+        item.End = DateTime.SpecifyKind(item.End, DateTimeKind.Local);
+        CalendarItemChangeEventArgs? changed = null;
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { item })
+            .Add(static p => p.ItemChanged, e => changed = e));
+
+        await cut.InvokeAsync(() => cut.Instance.OnMove("a", "2026-11-13T12:00:00", "2026-11-13T13:00:00", false));
+
+        Assert.Equal((DateTimeKind.Local, DateTimeKind.Local), (changed?.Start.Kind, changed?.End.Kind));
     }
 
     [Fact]
@@ -449,6 +483,36 @@ public sealed class MusselCalendarViewTests : BunitContext
         Assert.DoesNotContain("mc-dual", cut.Find(".mc-timegrid").ClassList);
         Assert.Empty(cut.FindAll(".mc-zones"));
         Assert.Empty(cut.FindAll(".mc-time.mc-secondary"));
+    }
+
+    [Theory]
+    [InlineData("en-US", "12/1")]
+    [InlineData("ja-JP", "12/1")]
+    [InlineData("en-GB", "1/12")]
+    [InlineData("de-DE", "1.12")]
+    public void TheFirstDayOfAMonthFollowsTheOrderOfTheCulture(string culture, string expected)
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, new DateOnly(2026, 12, 15))
+            .Add(static p => p.Culture, new CultureInfo(culture)));
+
+        Assert.Contains(expected, cut.FindAll(".mc-date").Select(static x => x.TextContent));
+    }
+
+    [Fact]
+    public async Task AnExceptionInAHandlerCalledFromTheScriptReachesTheRenderer()
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { Item("a", 9, 10) })
+            .Add(static p => p.ItemClicked, static _ => throw new InvalidOperationException("app")));
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => cut.Instance.OnItemClick("a", 0, 0, 0, 0)));
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.Same(Renderer.UnhandledException, ended);
+        Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
     }
 
     private static CalendarItem Item(string id, double startHour, double endHour)

@@ -7,6 +7,7 @@
     <Project Path="MusselCalendar/MusselCalendar.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="MusselCalendar.E2ETests/MusselCalendar.E2ETests.csproj" />
     <Project Path="MusselCalendar.Tests/MusselCalendar.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
@@ -21,6 +22,5 @@
     <File Path="LICENSE" />
     <File Path="MusselCalendar.sln.DotSettings" />
     <File Path="README.md" />
-    <File Path="Settings.XamlStyler" />
   </Folder>
 </Solution>

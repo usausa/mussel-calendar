@@ -63,7 +63,7 @@ Show the items in an interactive component, and apply the changes the view repor
 <MusselCalendarView View="view" Date="date" FirstDayOfWeek="DayOfWeek.Monday" Items="items" />
 ```
 
-The `Example` project shows a calendar page with popups and the dark theme on Server, WebAssembly and Auto.  
+The `Example` project shows a calendar page with popups and the dark theme on Server and WebAssembly.  
 
 ## 🎨 Look
 
@@ -96,3 +96,4 @@ See the [API reference](Document/API.md).
 - [MusselChart](https://github.com/usausa/mussel-chart) - Charts
 - [MusselSheet](https://github.com/usausa/mussel-sheet) - Input sheet
 - [MusselCalendar](https://github.com/usausa/mussel-calendar) - Calendar
+- [MusselDiagram](https://github.com/usausa/mussel-diagram) - Diagram editor

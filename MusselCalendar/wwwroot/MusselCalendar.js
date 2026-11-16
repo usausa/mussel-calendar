@@ -1,6 +1,6 @@
 const threshold = 4;
 const touchTolerance = 8;
-const touchDelay = 250;
+const touchDelay = 400;
 const scrollEdge = 40;
 const scrollSpeed = 16;
 const scrollMargin = 8;
@@ -423,7 +423,9 @@ class Calendar {
     begin() {
         const p = this.pending;
         if (p.item?.dataset.readOnly === "true") {
-            p.canceled = true;
+            if (!p.touch) {
+                p.canceled = true;
+            }
             return;
         }
         const d = { kind: p.kind, item: p.item, x: p.x, y: p.y, originX: p.x, originY: p.y, moved: !p.touch, result: null };
@@ -473,7 +475,7 @@ class Calendar {
         const body = this.root.querySelector(".mc-body");
         const zone = this.zoneAt(d.x, d.y);
         const scrollable = (d.kind === "create-time") || (d.kind === "resize") || ((d.kind === "move-time") && (zone !== "allday")) || ((d.kind === "move-day") && (zone === "time"));
-        if (body && scrollable) {
+        if (body && scrollable && d.moved) {
             const rect = body.getBoundingClientRect();
             if ((d.x >= rect.left) && (d.x <= rect.right)) {
                 const delta = d.y < rect.top + scrollEdge ? -scrollSpeed : d.y > rect.bottom - scrollEdge ? scrollSpeed : 0;
@@ -793,6 +795,7 @@ class MiniMonth {
 export function attach(dotNet, root, scrollHour) {
     const calendar = new Calendar(root, dotNet);
     calendar.scroll(scrollHour);
+    root.dataset.attached = "";
     return {
         scroll: (hour) => calendar.scroll(hour),
         fit: () => calendar.fit(),
@@ -802,6 +805,7 @@ export function attach(dotNet, root, scrollHour) {
 
 export function attachMiniMonth(dotNet, root) {
     const miniMonth = new MiniMonth(root, dotNet);
+    root.dataset.attached = "";
     return {
         focus: () => miniMonth.focus(),
         dispose: () => miniMonth.dispose()

@@ -25,6 +25,14 @@ public sealed class CalendarRangeTests
     }
 
     [Fact]
+    public void WeekOfTheFirstDayStopsAtTheFirstDay()
+    {
+        var range = CalendarRange.Of(CalendarViewKind.Month, default, DayOfWeek.Sunday, 1);
+
+        Assert.Equal(DateOnly.MinValue, range.Start);
+    }
+
+    [Fact]
     public void DaysViewStartsOnDate()
     {
         var range = CalendarRange.Of(CalendarViewKind.Days, new DateOnly(2026, 11, 12), DayOfWeek.Sunday, 3);
