@@ -68,9 +68,9 @@ const applyTheme = (element, theme) => {
 };
 
 class Calendar {
-    constructor(root, dotNet) {
+    constructor(root, dotnet) {
         this.root = root;
-        this.dotNet = dotNet;
+        this.dotnet = dotnet;
         this.drag = null;
         this.pending = null;
         this.previews = [];
@@ -146,7 +146,7 @@ class Calendar {
         const lanes = Math.max(1, Math.floor((week.clientHeight - tracks[0] - gap) / (tracks[1] + gap)));
         if (lanes !== this.lanes) {
             this.lanes = lanes;
-            this.dotNet.invokeMethodAsync('OnMonthLanes', lanes).catch(() => {
+            this.dotnet.invokeMethodAsync('OnMonthLanes', lanes).catch(() => {
                 this.lanes = 0;
             });
         }
@@ -236,7 +236,7 @@ class Calendar {
         if (entry) {
             if ((e.key === 'Enter') || (e.key === ' ')) {
                 e.preventDefault();
-                this.dotNet.invokeMethodAsync('OnItemClick', entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
+                this.dotnet.invokeMethodAsync('OnItemClick', entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
             }
             return;
         }
@@ -247,7 +247,7 @@ class Calendar {
         const id = item.dataset.id;
         if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync('OnItemClick', id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
+            this.dotnet.invokeMethodAsync('OnItemClick', id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
             return;
         }
         if (!e.altKey) {
@@ -261,10 +261,10 @@ class Calendar {
         }
         let call = null;
         if ((e.key === 'ArrowLeft') || (e.key === 'ArrowRight')) {
-            call = this.dotNet.invokeMethodAsync('OnShift', id, e.key === 'ArrowLeft' ? -1 : 1, 0);
+            call = this.dotnet.invokeMethodAsync('OnShift', id, e.key === 'ArrowLeft' ? -1 : 1, 0);
         } else if (item.classList.contains('mc-event') && ((e.key === 'ArrowUp') || (e.key === 'ArrowDown'))) {
             const minutes = e.key === 'ArrowUp' ? -this.slot : this.slot;
-            call = e.shiftKey ? this.dotNet.invokeMethodAsync('OnExtend', id, minutes) : this.dotNet.invokeMethodAsync('OnShift', id, 0, minutes);
+            call = e.shiftKey ? this.dotnet.invokeMethodAsync('OnExtend', id, minutes) : this.dotnet.invokeMethodAsync('OnShift', id, 0, minutes);
         }
         if (call) {
             e.preventDefault();
@@ -278,7 +278,7 @@ class Calendar {
         }
         if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync('OnDayClick', cell.dataset.date).catch(() => { });
+            this.dotnet.invokeMethodAsync('OnDayClick', cell.dataset.date).catch(() => { });
             return;
         }
         const date = targetOf(cell, e);
@@ -294,7 +294,7 @@ class Calendar {
             return;
         }
         next.focus();
-        this.dotNet.invokeMethodAsync('OnYearFocus', date).catch(() => { });
+        this.dotnet.invokeMethodAsync('OnYearFocus', date).catch(() => { });
     }
 
     pointerDown(e) {
@@ -658,13 +658,13 @@ class Calendar {
         if (commit && r) {
             if ((d.kind === 'create-time') || (d.kind === 'create-day')) {
                 const rect = this.previews[0]?.getBoundingClientRect() ?? new DOMRect(d.x, d.y, 0, 0);
-                this.dotNet.invokeMethodAsync('OnSelect', format(r.start), format(r.end), r.allDay, ...anchorOf(rect)).catch(() => { });
+                this.dotnet.invokeMethodAsync('OnSelect', format(r.start), format(r.end), r.allDay, ...anchorOf(rect)).catch(() => { });
             } else if ((d.kind === 'move-day') && !r.convert) {
                 if (r.shift) {
-                    call = this.dotNet.invokeMethodAsync('OnShift', d.id, r.shift, 0);
+                    call = this.dotnet.invokeMethodAsync('OnShift', d.id, r.shift, 0);
                 }
             } else if ((r.start !== d.start) || (r.end !== d.end) || r.allDay || r.convert) {
-                call = this.dotNet.invokeMethodAsync('OnMove', d.id, format(r.start), format(r.end), r.allDay);
+                call = this.dotnet.invokeMethodAsync('OnMove', d.id, format(r.start), format(r.end), r.allDay);
             }
         }
         if (call) {
@@ -708,7 +708,7 @@ class Calendar {
             return;
         }
         if (pending.item) {
-            this.dotNet.invokeMethodAsync('OnItemClick', pending.item.dataset.id, ...anchorOf(pending.item.getBoundingClientRect())).catch(() => { });
+            this.dotnet.invokeMethodAsync('OnItemClick', pending.item.dataset.id, ...anchorOf(pending.item.getBoundingClientRect())).catch(() => { });
             return;
         }
         if (pending.kind === 'create-time') {
@@ -716,13 +716,13 @@ class Calendar {
             if (at) {
                 const ppm = this.hourHeight / 60;
                 const top = at.column.rect.top + ((at.minutes - dayStart(at.column.element.dataset.date)) * ppm);
-                this.dotNet.invokeMethodAsync('OnSelect', format(at.minutes), format(at.minutes + this.defaultMinutes), false, at.column.rect.left, top, at.column.rect.width, this.defaultMinutes * ppm).catch(() => { });
+                this.dotnet.invokeMethodAsync('OnSelect', format(at.minutes), format(at.minutes + this.defaultMinutes), false, at.column.rect.left, top, at.column.rect.width, this.defaultMinutes * ppm).catch(() => { });
             }
         } else if (pending.kind === 'create-day') {
             const cell = this.cellAt(pending.x, pending.y);
             if (cell) {
                 const date = cell.dataset.date;
-                this.dotNet.invokeMethodAsync('OnSelect', `${date}T00:00:00`, `${addDays(date, 1)}T00:00:00`, true, ...anchorOf(cell.getBoundingClientRect())).catch(() => { });
+                this.dotnet.invokeMethodAsync('OnSelect', `${date}T00:00:00`, `${addDays(date, 1)}T00:00:00`, true, ...anchorOf(cell.getBoundingClientRect())).catch(() => { });
             }
         }
     }
@@ -731,7 +731,7 @@ class Calendar {
         const entry = this.entryOf(e.target);
         if (entry) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync('OnItemClick', entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
+            this.dotnet.invokeMethodAsync('OnItemClick', entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
             return;
         }
         const more = e.target instanceof Element ? e.target.closest('.mc-more') : null;
@@ -739,7 +739,7 @@ class Calendar {
             return;
         }
         e.preventDefault();
-        this.dotNet.invokeMethodAsync('OnMoreClick', more.dataset.date, ...anchorOf(more.getBoundingClientRect())).catch(() => { });
+        this.dotnet.invokeMethodAsync('OnMoreClick', more.dataset.date, ...anchorOf(more.getBoundingClientRect())).catch(() => { });
     }
 
     suppressClick() {
@@ -775,9 +775,9 @@ class Calendar {
 }
 
 class MiniMonth {
-    constructor(root, dotNet) {
+    constructor(root, dotnet) {
         this.root = root;
-        this.dotNet = dotNet;
+        this.dotnet = dotnet;
         this.onKeyDown = (e) => this.keyDown(e);
         root.addEventListener('keydown', this.onKeyDown);
     }
@@ -789,7 +789,7 @@ class MiniMonth {
         }
         if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync('OnSelectDate', cell.dataset.date).catch(() => { });
+            this.dotnet.invokeMethodAsync('OnSelectDate', cell.dataset.date).catch(() => { });
             return;
         }
         const date = targetOf(cell, e);
@@ -801,7 +801,7 @@ class MiniMonth {
         }
         e.preventDefault();
         this.root.querySelector(`td[data-date="${date}"]:not(.mm-outside)`)?.focus();
-        this.dotNet.invokeMethodAsync('OnFocusDate', date).catch(() => { });
+        this.dotnet.invokeMethodAsync('OnFocusDate', date).catch(() => { });
     }
 
     focus() {
@@ -814,8 +814,8 @@ class MiniMonth {
     }
 }
 
-export function attach(root, dotNet, scrollHour) {
-    const calendar = new Calendar(root, dotNet);
+export function attach(root, dotnet, scrollHour) {
+    const calendar = new Calendar(root, dotnet);
     calendar.scroll(scrollHour);
     return {
         scroll: (hour) => calendar.scroll(hour),
@@ -827,8 +827,8 @@ export function attach(root, dotNet, scrollHour) {
     };
 }
 
-export function attachMiniMonth(root, dotNet) {
-    const miniMonth = new MiniMonth(root, dotNet);
+export function attachMiniMonth(root, dotnet) {
+    const miniMonth = new MiniMonth(root, dotnet);
     root.dataset.attached = '';
     return {
         focus: () => miniMonth.focus(),

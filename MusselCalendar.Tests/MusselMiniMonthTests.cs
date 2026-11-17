@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
+using MusselCalendar.Internal;
+
 public sealed class MusselMiniMonthTests : BunitContext
 {
     private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
@@ -211,7 +213,7 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.DateChanged, static _ => throw new InvalidOperationException("app")));
 
-        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => cut.Instance.OnSelectDate("2026-11-20")));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnSelectDate("2026-11-20")));
         var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
         Assert.Same(Renderer.UnhandledException, ended);
@@ -225,7 +227,7 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.MonthChanged, static _ => throw new InvalidOperationException("app")));
 
-        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => cut.Instance.OnFocusDate("2026-12-03")));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnFocusDate("2026-12-03")));
         var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
         Assert.Same(Renderer.UnhandledException, ended);

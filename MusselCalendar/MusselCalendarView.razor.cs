@@ -33,7 +33,7 @@ public sealed partial class MusselCalendarView
 
     private IJSObjectReference? instance;
 
-    private DotNetObjectReference<CalendarScriptBridge>? reference;
+    private DotNetObjectReference<CalendarScriptBridge>? self;
 
     private CultureInfo? givenCulture;
 
@@ -66,8 +66,6 @@ public sealed partial class MusselCalendarView
     private bool pendingScroll;
 
     private bool pendingFit;
-
-    private bool disposed;
 
     [Inject]
     private IJSRuntime Runtime { get; set; } = default!;
@@ -166,6 +164,8 @@ public sealed partial class MusselCalendarView
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     internal CultureInfo FormatCulture { get; private set; } = CultureInfo.CurrentCulture;
+
+    internal bool IsDisposed { get; private set; }
 
     private TimeProvider Clock => TimeProvider ?? TimeProvider.System;
 
@@ -283,60 +283,59 @@ public sealed partial class MusselCalendarView
 
     public async ValueTask DisposeAsync()
     {
-        disposed = true;
+        IsDisposed = true;
         timer?.Dispose();
-        try
-        {
-            await ReleaseAsync().ConfigureAwait(true);
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-
-        reference?.Dispose();
+        await ReleaseAsync().ConfigureAwait(true);
+        self?.Dispose();
     }
 
-    internal Task OnSelect(string start, string until, bool allDay, double left, double top, double width, double height) =>
-        disposed || ReadOnly || !TryParse(start, out var begin) || !TryParse(until, out var end)
-            ? Task.CompletedTask
-            : ReportAsync(() => RangeSelected.InvokeAsync(new CalendarSelectEventArgs(begin, end, allDay, new CalendarAnchor(left, top, width, height))));
+    internal async Task OnSelect(string start, string until, bool allDay, double left, double top, double width, double height)
+    {
+        if (!ReadOnly && TryParse(start, out var begin) && TryParse(until, out var end))
+        {
+            await RangeSelected.InvokeAsync(new CalendarSelectEventArgs(begin, end, allDay, new CalendarAnchor(left, top, width, height))).ConfigureAwait(true);
+        }
+    }
 
-    internal Task OnItemClick(string id, double left, double top, double width, double height)
+    internal async Task OnItemClick(string id, double left, double top, double width, double height)
+    {
+        if (Find(id) is { } item)
+        {
+            await ItemClicked.InvokeAsync(new CalendarItemEventArgs(item, new CalendarAnchor(left, top, width, height))).ConfigureAwait(true);
+        }
+    }
+
+    internal async Task OnMove(string id, string start, string until, bool allDay)
     {
         var item = Find(id);
-        return (item is null) || disposed
-            ? Task.CompletedTask
-            : ReportAsync(() => ItemClicked.InvokeAsync(new CalendarItemEventArgs(item, new CalendarAnchor(left, top, width, height))));
+        if ((item is not null) && !item.ReadOnly && !ReadOnly && TryParse(start, out var begin) && TryParse(until, out var end))
+        {
+            await ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, DateTime.SpecifyKind(begin, item.Start.Kind), DateTime.SpecifyKind(end, item.End.Kind), allDay)).ConfigureAwait(true);
+        }
     }
 
-    internal Task OnMove(string id, string start, string until, bool allDay)
-    {
-        var item = Find(id);
-        return (item is null) || item.ReadOnly || ReadOnly || disposed || !TryParse(start, out var begin) || !TryParse(until, out var end)
-            ? Task.CompletedTask
-            : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, DateTime.SpecifyKind(begin, item.Start.Kind), DateTime.SpecifyKind(end, item.End.Kind), allDay)));
-    }
-
-    internal Task OnShift(string id, int days, int minutes)
+    internal async Task OnShift(string id, int days, int minutes)
     {
         var item = Find(id);
         var offset = ((Int128)days * TimeSpan.TicksPerDay) + ((Int128)minutes * TimeSpan.TicksPerMinute);
-        return (item is null) || item.ReadOnly || ReadOnly || disposed || !TryShift(item.Start, offset, out var start) || !TryShift(item.End, offset, out var end)
-            ? Task.CompletedTask
-            : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, start, end, item.AllDay)));
+        if ((item is not null) && !item.ReadOnly && !ReadOnly && TryShift(item.Start, offset, out var start) && TryShift(item.End, offset, out var end))
+        {
+            await ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, start, end, item.AllDay)).ConfigureAwait(true);
+        }
     }
 
-    internal Task OnExtend(string id, int minutes)
+    internal async Task OnExtend(string id, int minutes)
     {
         var item = Find(id);
-        return (item is null) || item.ReadOnly || item.AllDay || ReadOnly || disposed || !TryShift(item.End, (Int128)minutes * TimeSpan.TicksPerMinute, out var end) || (end <= item.Start)
-            ? Task.CompletedTask
-            : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, end, false)));
+        if ((item is not null) && !item.ReadOnly && !item.AllDay && !ReadOnly && TryShift(item.End, (Int128)minutes * TimeSpan.TicksPerMinute, out var end) && (end > item.Start))
+        {
+            await ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, end, false)).ConfigureAwait(true);
+        }
     }
 
     internal void OnMonthLanes(int lanes)
     {
-        if (disposed || !FitsLanes || (lanes < 1) || (lanes == fittedLanes))
+        if (!FitsLanes || (lanes < 1) || (lanes == fittedLanes))
         {
             return;
         }
@@ -349,15 +348,15 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    private async Task ReportAsync(Func<Task> operation)
+    internal async Task ReportAsync(Task task)
     {
         try
         {
-            await operation().ConfigureAwait(true);
+            await task.ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is not (JSDisconnectedException or OperationCanceledException))
         {
-            if (!disposed)
+            if (!IsDisposed)
             {
                 await DispatchExceptionAsync(ex).ConfigureAwait(true);
             }
@@ -371,16 +370,16 @@ public sealed partial class MusselCalendarView
         try
         {
             module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
-            if (disposed)
+            if (IsDisposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
                 return;
             }
 
-            reference = DotNetObjectReference.Create(new CalendarScriptBridge(this));
-            var attached = await module.InvokeAsync<IJSObjectReference>("attach", element, reference, ScrollHour).ConfigureAwait(true);
+            self = DotNetObjectReference.Create(new CalendarScriptBridge(this));
+            var attached = await module.InvokeAsync<IJSObjectReference>("attach", element, self, ScrollHour).ConfigureAwait(true);
             instance = attached;
-            if (disposed)
+            if (IsDisposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
                 return;
@@ -392,13 +391,13 @@ public sealed partial class MusselCalendarView
                 await SendAsync(attached, "scroll", ScrollHour).ConfigureAwait(true);
             }
 
-            if (pendingFit && !disposed)
+            if (pendingFit && !IsDisposed)
             {
                 pendingFit = false;
                 await SendAsync(attached, "fit").ConfigureAwait(true);
             }
 
-            if (!disposed)
+            if (!IsDisposed)
             {
                 await attached.InvokeVoidAsync("ready").ConfigureAwait(true);
             }
@@ -461,23 +460,28 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal Task OnDayClick(string date) =>
-        disposed || !TryParseDate(date, out var day) ? Task.CompletedTask : ReportAsync(() => DayClicked.InvokeAsync(day));
+    internal async Task OnDayClick(string date)
+    {
+        if (TryParseDate(date, out var day))
+        {
+            await DayClicked.InvokeAsync(day).ConfigureAwait(true);
+        }
+    }
 
     internal void OnYearFocus(string date)
     {
-        if (!disposed && TryParseDate(date, out var day))
+        if (TryParseDate(date, out var day))
         {
             yearFocus = day;
             StateHasChanged();
         }
     }
 
-    internal Task OnMoreClick(string date, double left, double top, double width, double height)
+    internal async Task OnMoreClick(string date, double left, double top, double width, double height)
     {
-        if (disposed || !TryParseDate(date, out var day))
+        if (!TryParseDate(date, out var day))
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var items = Items
@@ -485,7 +489,7 @@ public sealed partial class MusselCalendarView
             .OrderBy(static x => !x.AllDay)
             .ThenBy(static x => x.Start)
             .ToList();
-        return ReportAsync(() => MoreClicked.InvokeAsync(new CalendarMoreEventArgs(day, items, new CalendarAnchor(left, top, width, height))));
+        await MoreClicked.InvokeAsync(new CalendarMoreEventArgs(day, items, new CalendarAnchor(left, top, width, height))).ConfigureAwait(true);
     }
 
     private void OnTick(object? state) =>

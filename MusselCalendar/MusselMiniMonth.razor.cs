@@ -23,7 +23,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     private IJSObjectReference? instance;
 
-    private DotNetObjectReference<MiniMonthScriptBridge>? reference;
+    private DotNetObjectReference<MiniMonthScriptBridge>? self;
 
     private CultureInfo? givenCulture;
 
@@ -44,8 +44,6 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     private bool monthGiven;
 
     private bool focusPending;
-
-    private bool disposed;
 
     [Inject]
     private IJSRuntime Runtime { get; set; } = default!;
@@ -84,6 +82,8 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     internal CultureInfo FormatCulture { get; private set; } = CultureInfo.CurrentCulture;
+
+    internal bool IsDisposed { get; private set; }
 
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-mini-month {extra}" : "mussel-mini-month";
 
@@ -158,22 +158,15 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        disposed = true;
+        IsDisposed = true;
         timer?.Dispose();
-        try
-        {
-            await ReleaseAsync().ConfigureAwait(true);
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-
-        reference?.Dispose();
+        await ReleaseAsync().ConfigureAwait(true);
+        self?.Dispose();
     }
 
     internal async Task OnFocusDate(string date)
     {
-        if (disposed || !TryParse(date, out var day))
+        if (!TryParse(date, out var day))
         {
             return;
         }
@@ -183,24 +176,29 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         if (first != month)
         {
             focusPending = true;
-            await ReportAsync(() => ShowAsync(first)).ConfigureAwait(true);
+            await ShowAsync(first).ConfigureAwait(true);
         }
 
         StateHasChanged();
     }
 
-    internal Task OnSelectDate(string date) =>
-        disposed || !TryParse(date, out var day) ? Task.CompletedTask : ReportAsync(() => SelectAsync(day));
+    internal async Task OnSelectDate(string date)
+    {
+        if (TryParse(date, out var day))
+        {
+            await SelectAsync(day).ConfigureAwait(true);
+        }
+    }
 
-    private async Task ReportAsync(Func<Task> operation)
+    internal async Task ReportAsync(Task task)
     {
         try
         {
-            await operation().ConfigureAwait(true);
+            await task.ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is not (JSDisconnectedException or OperationCanceledException))
         {
-            if (!disposed)
+            if (!IsDisposed)
             {
                 await DispatchExceptionAsync(ex).ConfigureAwait(true);
             }
@@ -214,15 +212,15 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         try
         {
             module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
-            if (disposed)
+            if (IsDisposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
                 return;
             }
 
-            reference = DotNetObjectReference.Create(new MiniMonthScriptBridge(this));
-            instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", element, reference).ConfigureAwait(true);
-            if (disposed)
+            self = DotNetObjectReference.Create(new MiniMonthScriptBridge(this));
+            instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", element, self).ConfigureAwait(true);
+            if (IsDisposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
                 return;

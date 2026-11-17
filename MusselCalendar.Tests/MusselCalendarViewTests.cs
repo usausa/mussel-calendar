@@ -3,6 +3,8 @@ namespace MusselCalendar;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
+using MusselCalendar.Internal;
+
 public sealed class MusselCalendarViewTests : BunitContext
 {
     private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
@@ -638,7 +640,7 @@ public sealed class MusselCalendarViewTests : BunitContext
             .Add(static p => p.Items, new[] { Item("a", 9, 10) })
             .Add(static p => p.ItemClicked, static _ => throw new InvalidOperationException("app")));
 
-        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => cut.Instance.OnItemClick("a", 0, 0, 0, 0)));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnItemClick("a", 0, 0, 0, 0)));
         var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
         Assert.Same(Renderer.UnhandledException, ended);
@@ -654,8 +656,9 @@ public sealed class MusselCalendarViewTests : BunitContext
             .Add(static p => p.ItemClicked, static _ => throw new OperationCanceledException())
             .Add(static p => p.DayClicked, static _ => throw new JSDisconnectedException("gone")));
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => cut.InvokeAsync(() => cut.Instance.OnItemClick("a", 0, 0, 0, 0)));
-        await Assert.ThrowsAsync<JSDisconnectedException>(() => cut.InvokeAsync(() => cut.Instance.OnDayClick("2026-11-12")));
+        var bridge = new CalendarScriptBridge(cut.Instance);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => cut.InvokeAsync(() => bridge.OnItemClick("a", 0, 0, 0, 0)));
+        await Assert.ThrowsAsync<JSDisconnectedException>(() => cut.InvokeAsync(() => bridge.OnDayClick("2026-11-12")));
         var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
         Assert.NotSame(Renderer.UnhandledException, ended);
@@ -826,8 +829,8 @@ public sealed class MusselCalendarViewTests : BunitContext
     {
         CalendarItem[] items =
         [
-            new CalendarItem { Id = "timed", Title = "timed", Start = DateTime.MaxValue, End = DateTime.MaxValue },
-            new CalendarItem { Id = "allDay", Title = "allDay", Start = DateTime.MaxValue, End = DateTime.MaxValue, AllDay = true },
+            new() { Id = "timed", Title = "timed", Start = DateTime.MaxValue, End = DateTime.MaxValue },
+            new() { Id = "allDay", Title = "allDay", Start = DateTime.MaxValue, End = DateTime.MaxValue, AllDay = true },
             Item("b", 9, 10)
         ];
         var cut = Render<MusselCalendarView>(parameters => parameters
