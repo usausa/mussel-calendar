@@ -1,12 +1,12 @@
-const threshold = 4;
-const touchTolerance = 8;
-const touchDelay = 400;
-const scrollEdge = 40;
-const scrollSpeed = 16;
-const scrollMargin = 8;
+const THRESHOLD = 4;
+const TOUCH_TOLERANCE = 8;
+const TOUCH_DELAY = 400;
+const SCROLL_EDGE = 40;
+const SCROLL_SPEED = 16;
+const SCROLL_MARGIN = 8;
 
-const pad = (n) => String(n).padStart(2, "0");
-const year = (d) => String(d.getUTCFullYear()).padStart(4, "0");
+const pad = (n) => String(n).padStart(2, '0');
+const year = (d) => String(d.getUTCFullYear()).padStart(4, '0');
 const utc = (fullYear, month, day) => {
     const d = new Date(0);
     d.setUTCFullYear(fullYear, month, day);
@@ -27,36 +27,40 @@ export const addMonths = (date, months) => {
 };
 export const targetOf = (cell, e) => {
     const date = stepOf(cell, e);
-    return (date !== null) && /^\d{4}-/.test(date) && (date >= "0001-01-01") ? date : null;
+    if ((date !== null) && /^\d{4}-/.test(date) && (date >= '0001-01-01')) {
+        return date;
+    }
+    return e.key === 'Home' ? '0001-01-01' : e.key === 'End' ? '9999-12-31' : null;
 };
+export const isMoveKey = (key) => ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(key);
 const stepOf = (cell, e) => {
     const date = cell.dataset.date;
     switch (e.key) {
-        case "ArrowLeft":
+        case 'ArrowLeft':
             return addDays(date, -1);
-        case "ArrowRight":
+        case 'ArrowRight':
             return addDays(date, 1);
-        case "ArrowUp":
+        case 'ArrowUp':
             return addDays(date, -7);
-        case "ArrowDown":
+        case 'ArrowDown':
             return addDays(date, 7);
-        case "Home":
+        case 'Home':
             return addDays(date, -cell.cellIndex);
-        case "End":
+        case 'End':
             return addDays(date, 6 - cell.cellIndex);
-        case "PageUp":
+        case 'PageUp':
             return addMonths(date, e.shiftKey ? -12 : -1);
-        case "PageDown":
+        case 'PageDown':
             return addMonths(date, e.shiftKey ? 12 : 1);
         default:
             return null;
     }
 };
 const contains = (rect, x, y) => (x >= rect.left) && (x < rect.right) && (y >= rect.top) && (y < rect.bottom);
-const arrowKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+const arrowKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
 const anchorOf = (rect) => [rect.left, rect.top, rect.width, rect.height];
 const preventDefault = (e) => e.preventDefault();
-const themeNames = ["--mussel-calendar-range", "--mussel-calendar-range-border", "--mussel-calendar-event-text"];
+const themeNames = ['--mussel-calendar-range', '--mussel-calendar-range-border', '--mussel-calendar-event-text', '--mussel-font-family'];
 const applyTheme = (element, theme) => {
     for (const [name, value] of theme) {
         element.style.setProperty(name, value);
@@ -87,7 +91,7 @@ class Calendar {
             }
         };
         this.onWindowKeyDown = (e) => {
-            if ((e.key === "Escape") && this.drag) {
+            if ((e.key === 'Escape') && this.drag) {
                 e.preventDefault();
                 if (this.pending) {
                     this.pending.canceled = true;
@@ -95,11 +99,11 @@ class Calendar {
                 this.finish(false);
             }
         };
-        root.addEventListener("pointerdown", this.onPointerDown);
-        root.addEventListener("touchstart", this.onTouchStart, { passive: true });
-        root.addEventListener("keydown", this.onKeyDown);
-        root.addEventListener("click", this.onClick);
-        root.addEventListener("touchmove", this.onRootTouchMove, { passive: false });
+        root.addEventListener('pointerdown', this.onPointerDown);
+        root.addEventListener('touchstart', this.onTouchStart, { passive: true });
+        root.addEventListener('keydown', this.onKeyDown);
+        root.addEventListener('click', this.onClick);
+        root.addEventListener('touchmove', this.onRootTouchMove, { passive: false });
         this.lanes = 0;
         this.resizeObserver = new ResizeObserver(() => this.fit());
         this.resizeObserver.observe(root);
@@ -118,23 +122,23 @@ class Calendar {
     }
 
     get readOnly() {
-        return this.root.dataset.readOnly === "true";
+        return this.root.dataset.readOnly === 'true';
     }
 
     scroll(hour) {
-        const body = this.root.querySelector(".mc-body");
+        const body = this.root.querySelector('.mc-body');
         if (body) {
-            body.scrollTop = Math.max((hour * this.hourHeight) - scrollMargin, 0);
+            body.scrollTop = Math.max((hour * this.hourHeight) - SCROLL_MARGIN, 0);
         }
     }
 
     fit() {
-        const week = this.root.querySelector(".mc-week");
-        if ((this.root.dataset.fitLanes !== "true") || !week) {
+        const week = this.root.querySelector('.mc-week');
+        if ((this.root.dataset.fitLanes !== 'true') || !week) {
             return;
         }
         const style = getComputedStyle(week);
-        const tracks = style.gridTemplateRows.split(" ").map(parseFloat);
+        const tracks = style.gridTemplateRows.split(' ').map(parseFloat);
         const gap = parseFloat(style.rowGap) || 0;
         if ((tracks.length < 3) || !(tracks[1] > 0)) {
             return;
@@ -142,14 +146,14 @@ class Calendar {
         const lanes = Math.max(1, Math.floor((week.clientHeight - tracks[0] - gap) / (tracks[1] + gap)));
         if (lanes !== this.lanes) {
             this.lanes = lanes;
-            this.dotNet.invokeMethodAsync("OnMonthLanes", lanes).catch(() => {
+            this.dotNet.invokeMethodAsync('OnMonthLanes', lanes).catch(() => {
                 this.lanes = 0;
             });
         }
     }
 
     columnAt(x) {
-        const columns = Array.from(this.root.querySelectorAll(".mc-column")).map((element) => ({ element, rect: element.getBoundingClientRect() }));
+        const columns = Array.from(this.root.querySelectorAll('.mc-column')).map((element) => ({ element, rect: element.getBoundingClientRect() }));
         if (columns.length === 0) {
             return null;
         }
@@ -160,7 +164,7 @@ class Calendar {
     }
 
     cellAt(x, y) {
-        for (const cell of this.root.querySelectorAll(".mc-cell")) {
+        for (const cell of this.root.querySelectorAll('.mc-cell')) {
             if (contains(cell.getBoundingClientRect(), x, y)) {
                 return cell;
             }
@@ -169,15 +173,15 @@ class Calendar {
     }
 
     zoneAt(x, y) {
-        const allDay = this.root.querySelector(".mc-allday");
+        const allDay = this.root.querySelector('.mc-allday');
         if (allDay && contains(allDay.getBoundingClientRect(), x, y)) {
-            return "allday";
+            return 'allday';
         }
-        const body = this.root.querySelector(".mc-body");
+        const body = this.root.querySelector('.mc-body');
         if (body && (y >= body.getBoundingClientRect().top)) {
-            return "time";
+            return 'time';
         }
-        return this.root.querySelector(".mc-month") ? "month" : null;
+        return this.root.querySelector('.mc-month') ? 'month' : null;
     }
 
     minuteIn(column, y, round) {
@@ -191,48 +195,48 @@ class Calendar {
     }
 
     itemOf(target) {
-        const item = target instanceof Element ? target.closest(".mc-event[data-id], .mc-bar[data-id]") : null;
+        const item = target instanceof Element ? target.closest('.mc-event[data-id], .mc-bar[data-id]') : null;
         return item && this.root.contains(item) ? item : null;
     }
 
     entryOf(target) {
-        const entry = target instanceof Element ? target.closest(".mc-schedule-item[data-id]") : null;
+        const entry = target instanceof Element ? target.closest('.mc-schedule-item[data-id]') : null;
         return entry && this.root.contains(entry) ? entry : null;
     }
 
     kindOf(target) {
-        if (!(target instanceof Element) || target.closest("button")) {
+        if (!(target instanceof Element) || target.closest('button')) {
             return null;
         }
-        const handle = target.closest(".mc-resize");
+        const handle = target.closest('.mc-resize');
         if (handle) {
             const item = this.itemOf(handle);
-            return item ? { kind: "resize", item } : null;
+            return item ? { kind: 'resize', item } : null;
         }
         const item = this.itemOf(target);
         if (item) {
-            return { kind: item.classList.contains("mc-event") ? "move-time" : "move-day", item };
+            return { kind: item.classList.contains('mc-event') ? 'move-time' : 'move-day', item };
         }
         if (this.readOnly) {
             return null;
         }
-        if (target.closest(".mc-column")) {
-            return { kind: "create-time" };
+        if (target.closest('.mc-column')) {
+            return { kind: 'create-time' };
         }
-        return target.closest(".mc-cell") ? { kind: "create-day" } : null;
+        return target.closest('.mc-cell') ? { kind: 'create-day' } : null;
     }
 
     keyDown(e) {
-        const yearDay = e.target instanceof Element ? e.target.closest(".mc-year-day[data-date]") : null;
+        const yearDay = e.target instanceof Element ? e.target.closest('.mc-year-day[data-date]') : null;
         if (yearDay && this.root.contains(yearDay)) {
             this.yearKeyDown(e, yearDay);
             return;
         }
         const entry = this.entryOf(e.target);
         if (entry) {
-            if ((e.key === "Enter") || (e.key === " ")) {
+            if ((e.key === 'Enter') || (e.key === ' ')) {
                 e.preventDefault();
-                this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
+                this.dotNet.invokeMethodAsync('OnItemClick', entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
             }
             return;
         }
@@ -241,26 +245,26 @@ class Calendar {
             return;
         }
         const id = item.dataset.id;
-        if ((e.key === "Enter") || (e.key === " ")) {
+        if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnItemClick", id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
+            this.dotNet.invokeMethodAsync('OnItemClick', id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
             return;
         }
         if (!e.altKey) {
             return;
         }
-        if (item.dataset.readOnly === "true") {
+        if (item.dataset.readOnly === 'true') {
             if (arrowKeys.includes(e.key)) {
                 e.preventDefault();
             }
             return;
         }
         let call = null;
-        if ((e.key === "ArrowLeft") || (e.key === "ArrowRight")) {
-            call = this.dotNet.invokeMethodAsync("OnShift", id, e.key === "ArrowLeft" ? -1 : 1, 0);
-        } else if (item.classList.contains("mc-event") && ((e.key === "ArrowUp") || (e.key === "ArrowDown"))) {
-            const minutes = e.key === "ArrowUp" ? -this.slot : this.slot;
-            call = e.shiftKey ? this.dotNet.invokeMethodAsync("OnExtend", id, minutes) : this.dotNet.invokeMethodAsync("OnShift", id, 0, minutes);
+        if ((e.key === 'ArrowLeft') || (e.key === 'ArrowRight')) {
+            call = this.dotNet.invokeMethodAsync('OnShift', id, e.key === 'ArrowLeft' ? -1 : 1, 0);
+        } else if (item.classList.contains('mc-event') && ((e.key === 'ArrowUp') || (e.key === 'ArrowDown'))) {
+            const minutes = e.key === 'ArrowUp' ? -this.slot : this.slot;
+            call = e.shiftKey ? this.dotNet.invokeMethodAsync('OnExtend', id, minutes) : this.dotNet.invokeMethodAsync('OnShift', id, 0, minutes);
         }
         if (call) {
             e.preventDefault();
@@ -272,13 +276,16 @@ class Calendar {
         if (e.altKey || e.ctrlKey || e.metaKey) {
             return;
         }
-        if ((e.key === "Enter") || (e.key === " ")) {
+        if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnDayClick", cell.dataset.date).catch(() => { });
+            this.dotNet.invokeMethodAsync('OnDayClick', cell.dataset.date).catch(() => { });
             return;
         }
         const date = targetOf(cell, e);
         if (!date) {
+            if (isMoveKey(e.key)) {
+                e.preventDefault();
+            }
             return;
         }
         e.preventDefault();
@@ -287,11 +294,11 @@ class Calendar {
             return;
         }
         next.focus();
-        this.dotNet.invokeMethodAsync("OnYearFocus", date).catch(() => { });
+        this.dotNet.invokeMethodAsync('OnYearFocus', date).catch(() => { });
     }
 
     pointerDown(e) {
-        if (this.drag || this.pending || this.settling || (e.pointerType === "touch") || (e.button !== 0)) {
+        if (this.drag || this.pending || this.settling || (e.pointerType === 'touch') || (e.button !== 0)) {
             return;
         }
         const found = this.kindOf(e.target);
@@ -302,30 +309,30 @@ class Calendar {
             e.preventDefault();
         }
         this.pending = { ...found, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch: false };
-        window.addEventListener("pointermove", this.onPointerMove, true);
-        window.addEventListener("pointerup", this.onPointerUp, true);
-        window.addEventListener("pointercancel", this.onPointerCancel, true);
-        document.addEventListener("selectstart", preventDefault, true);
-        document.addEventListener("dragstart", preventDefault, true);
+        window.addEventListener('pointermove', this.onPointerMove, true);
+        window.addEventListener('pointerup', this.onPointerUp, true);
+        window.addEventListener('pointercancel', this.onPointerCancel, true);
+        document.addEventListener('selectstart', preventDefault, true);
+        document.addEventListener('dragstart', preventDefault, true);
     }
 
     removePointer() {
-        window.removeEventListener("pointermove", this.onPointerMove, true);
-        window.removeEventListener("pointerup", this.onPointerUp, true);
-        window.removeEventListener("pointercancel", this.onPointerCancel, true);
-        document.removeEventListener("selectstart", preventDefault, true);
-        document.removeEventListener("dragstart", preventDefault, true);
+        window.removeEventListener('pointermove', this.onPointerMove, true);
+        window.removeEventListener('pointerup', this.onPointerUp, true);
+        window.removeEventListener('pointercancel', this.onPointerCancel, true);
+        document.removeEventListener('selectstart', preventDefault, true);
+        document.removeEventListener('dragstart', preventDefault, true);
     }
 
     pointerMove(e) {
         if (!this.pending || (e.pointerId !== this.pending.pointerId)) {
             return;
         }
-        if ((e.pointerType === "mouse") && ((e.buttons & 1) === 0)) {
+        if ((e.pointerType === 'mouse') && ((e.buttons & 1) === 0)) {
             this.pointerUp(e, true);
             return;
         }
-        if (!this.drag && !this.pending.canceled && (Math.hypot(e.clientX - this.pending.x, e.clientY - this.pending.y) >= threshold)) {
+        if (!this.drag && !this.pending.canceled && (Math.hypot(e.clientX - this.pending.x, e.clientY - this.pending.y) >= THRESHOLD)) {
             this.begin();
         }
         if (this.drag) {
@@ -368,11 +375,11 @@ class Calendar {
             if (this.pending && !this.drag) {
                 this.begin();
             }
-        }, touchDelay);
-        document.addEventListener("touchmove", this.onTouchMove, { passive: false });
-        document.addEventListener("touchend", this.onTouchEnd, { passive: false });
-        document.addEventListener("touchcancel", this.onTouchEnd, { passive: false });
-        document.addEventListener("contextmenu", preventDefault, true);
+        }, TOUCH_DELAY);
+        document.addEventListener('touchmove', this.onTouchMove, { passive: false });
+        document.addEventListener('touchend', this.onTouchEnd, { passive: false });
+        document.addEventListener('touchcancel', this.onTouchEnd, { passive: false });
+        document.addEventListener('contextmenu', preventDefault, true);
     }
 
     touchOf(e) {
@@ -388,11 +395,11 @@ class Calendar {
             e.preventDefault();
             this.drag.x = touch.clientX;
             this.drag.y = touch.clientY;
-            if (Math.hypot(touch.clientX - this.drag.originX, touch.clientY - this.drag.originY) > touchTolerance) {
+            if (Math.hypot(touch.clientX - this.drag.originX, touch.clientY - this.drag.originY) > TOUCH_TOLERANCE) {
                 this.drag.moved = true;
             }
             this.update();
-        } else if (Math.hypot(touch.clientX - this.pending.x, touch.clientY - this.pending.y) > touchTolerance) {
+        } else if (Math.hypot(touch.clientX - this.pending.x, touch.clientY - this.pending.y) > TOUCH_TOLERANCE) {
             this.clearTouch();
         }
     }
@@ -413,8 +420,8 @@ class Calendar {
             e.preventDefault();
         }
         if (dragging) {
-            this.finish(e.type === "touchend");
-        } else if ((e.type === "touchend") && !pending.canceled) {
+            this.finish(e.type === 'touchend');
+        } else if ((e.type === 'touchend') && !pending.canceled) {
             this.click(pending);
         }
     }
@@ -424,15 +431,15 @@ class Calendar {
             clearTimeout(this.pending.timer);
             this.pending = null;
         }
-        document.removeEventListener("touchmove", this.onTouchMove, { passive: false });
-        document.removeEventListener("touchend", this.onTouchEnd, { passive: false });
-        document.removeEventListener("touchcancel", this.onTouchEnd, { passive: false });
-        document.removeEventListener("contextmenu", preventDefault, true);
+        document.removeEventListener('touchmove', this.onTouchMove, { passive: false });
+        document.removeEventListener('touchend', this.onTouchEnd, { passive: false });
+        document.removeEventListener('touchcancel', this.onTouchEnd, { passive: false });
+        document.removeEventListener('contextmenu', preventDefault, true);
     }
 
     begin() {
         const p = this.pending;
-        if (p.item?.dataset.readOnly === "true") {
+        if (p.item?.dataset.readOnly === 'true') {
             if (!p.touch) {
                 p.canceled = true;
             }
@@ -444,16 +451,16 @@ class Calendar {
             d.start = p.item.dataset.start ? parse(p.item.dataset.start) : null;
             d.end = p.item.dataset.end ? parse(p.item.dataset.end) : null;
         }
-        if (d.kind === "move-time") {
+        if (d.kind === 'move-time') {
             const at = this.timeAt(p.x, p.y, (v) => v);
             d.grab = at ? at.minutes - d.start : 0;
-        } else if (d.kind === "move-day") {
+        } else if (d.kind === 'move-day') {
             d.grabDate = this.cellAt(p.x, p.y)?.dataset.date ?? null;
-        } else if (d.kind === "create-time") {
+        } else if (d.kind === 'create-time') {
             d.anchor = this.timeAt(p.x, p.y, Math.floor);
-        } else if (d.kind === "create-day") {
+        } else if (d.kind === 'create-day') {
             d.anchorDate = this.cellAt(p.x, p.y)?.dataset.date ?? null;
-        } else if (d.kind === "resize") {
+        } else if (d.kind === 'resize') {
             d.column = this.columnAt(p.item.getBoundingClientRect().left + 1);
         }
         const style = getComputedStyle(this.root);
@@ -465,15 +472,15 @@ class Calendar {
         if (d.id) {
             this.dim(d.id, true);
         }
-        document.body.style.userSelect = "none";
-        window.addEventListener("keydown", this.onWindowKeyDown, true);
+        document.body.style.userSelect = 'none';
+        window.addEventListener('keydown', this.onWindowKeyDown, true);
         this.frame = requestAnimationFrame(() => this.tick());
         this.update();
     }
 
     dim(id, value) {
         for (const element of this.root.querySelectorAll(`[data-id="${CSS.escape(id)}"]`)) {
-            element.classList.toggle("mc-dragging", value);
+            element.classList.toggle('mc-dragging', value);
         }
     }
 
@@ -482,13 +489,13 @@ class Calendar {
         if (!d) {
             return;
         }
-        const body = this.root.querySelector(".mc-body");
+        const body = this.root.querySelector('.mc-body');
         const zone = this.zoneAt(d.x, d.y);
-        const scrollable = (d.kind === "create-time") || (d.kind === "resize") || ((d.kind === "move-time") && (zone !== "allday")) || ((d.kind === "move-day") && (zone === "time"));
+        const scrollable = (d.kind === 'create-time') || (d.kind === 'resize') || ((d.kind === 'move-time') && (zone !== 'allday')) || ((d.kind === 'move-day') && (zone === 'time'));
         if (body && scrollable && d.moved) {
             const rect = body.getBoundingClientRect();
             if ((d.x >= rect.left) && (d.x <= rect.right)) {
-                const delta = d.y < rect.top + scrollEdge ? -scrollSpeed : d.y > rect.bottom - scrollEdge ? scrollSpeed : 0;
+                const delta = d.y < rect.top + SCROLL_EDGE ? -SCROLL_SPEED : d.y > rect.bottom - SCROLL_EDGE ? SCROLL_SPEED : 0;
                 if (delta !== 0) {
                     const before = body.scrollTop;
                     body.scrollTop += delta;
@@ -504,7 +511,7 @@ class Calendar {
     update() {
         const d = this.drag;
         const zone = this.zoneAt(d.x, d.y);
-        if ((d.kind === "create-time") && d.anchor) {
+        if ((d.kind === 'create-time') && d.anchor) {
             d.anchor.column.rect = d.anchor.column.element.getBoundingClientRect();
             const minutes = this.minuteIn(d.anchor.column, d.y, Math.floor);
             const base = dayStart(d.anchor.column.element.dataset.date);
@@ -513,15 +520,15 @@ class Calendar {
             const end = Math.min(Math.max(anchor, minutes) + this.slot, 1440);
             d.result = { start: base + start, end: base + end, allDay: false };
             this.showTime(d.anchor.column, start, end, null);
-        } else if ((d.kind === "create-day") && d.anchorDate) {
+        } else if ((d.kind === 'create-day') && d.anchorDate) {
             const date = this.cellAt(d.x, d.y)?.dataset.date ?? d.anchorDate;
             const reverse = dayDiff(d.anchorDate, date) < 0;
             const first = reverse ? date : d.anchorDate;
             const last = reverse ? d.anchorDate : date;
             d.result = { start: dayStart(first), end: dayStart(addDays(last, 1)), allDay: true };
             this.showDays(first, addDays(last, 1));
-        } else if (d.kind === "move-time") {
-            if (zone === "allday") {
+        } else if (d.kind === 'move-time') {
+            if (zone === 'allday') {
                 const date = this.cellAt(d.x, d.y)?.dataset.date;
                 if (date) {
                     d.result = { start: dayStart(date), end: dayStart(addDays(date, 1)), allDay: true };
@@ -538,8 +545,8 @@ class Calendar {
             const length = d.end - d.start;
             d.result = { start, end: start + length, allDay: false };
             this.showTime(at.column, start - base, Math.min(start - base + length, 1440), d.item);
-        } else if (d.kind === "move-day") {
-            if (zone === "time") {
+        } else if (d.kind === 'move-day') {
+            if (zone === 'time') {
                 const at = this.timeAt(d.x, d.y, Math.floor);
                 if (at) {
                     d.result = { start: at.minutes, end: at.minutes + this.defaultMinutes, allDay: false, convert: true };
@@ -556,7 +563,7 @@ class Calendar {
                 d.result = { shift };
                 this.showDays(addDays(first, shift), addDays(first, shift + days));
             }
-        } else if ((d.kind === "resize") && d.column) {
+        } else if ((d.kind === 'resize') && d.column) {
             d.column.rect = d.column.element.getBoundingClientRect();
             const base = dayStart(d.column.element.dataset.date);
             const end = Math.max(base + this.minuteIn(d.column, d.y, Math.ceil), d.start + this.slot);
@@ -567,9 +574,9 @@ class Calendar {
 
     preview(index, item) {
         while (this.previews.length <= index) {
-            const element = document.createElement("div");
-            element.className = "mc-preview";
-            element.setAttribute("aria-hidden", "true");
+            const element = document.createElement('div');
+            element.className = 'mc-preview';
+            element.setAttribute('aria-hidden', 'true');
             if (this.drag) {
                 applyTheme(element, this.drag.theme);
             }
@@ -577,21 +584,21 @@ class Calendar {
             this.previews.push(element);
         }
         const element = this.previews[index];
-        element.style.display = "block";
-        element.classList.toggle("mc-preview-range", !item);
-        element.style.backgroundColor = item ? getComputedStyle(item).backgroundColor : "";
-        element.textContent = item ? (item.querySelector(".mc-event-title, .mc-bar-title")?.textContent ?? "") : "";
+        element.style.display = 'block';
+        element.classList.toggle('mc-preview-range', !item);
+        element.style.backgroundColor = item ? getComputedStyle(item).backgroundColor : '';
+        element.textContent = item ? (item.querySelector('.mc-event-title, .mc-bar-title')?.textContent ?? '') : '';
         return element;
     }
 
     hidePreviews(from) {
         for (let i = from; i < this.previews.length; i++) {
-            this.previews[i].style.display = "none";
+            this.previews[i].style.display = 'none';
         }
     }
 
     showTime(column, start, end, item) {
-        const body = this.root.querySelector(".mc-body").getBoundingClientRect();
+        const body = this.root.querySelector('.mc-body').getBoundingClientRect();
         const ppm = this.hourHeight / 60;
         const top = Math.max(column.rect.top + (start * ppm), body.top);
         const bottom = Math.min(column.rect.top + (end * ppm), body.bottom);
@@ -607,7 +614,7 @@ class Calendar {
 
     showDays(first, end) {
         const rows = new Map();
-        for (const cell of this.root.querySelectorAll(".mc-cell")) {
+        for (const cell of this.root.querySelectorAll('.mc-cell')) {
             const date = cell.dataset.date;
             if ((dayDiff(first, date) < 0) || (dayDiff(date, end) <= 0)) {
                 continue;
@@ -639,8 +646,8 @@ class Calendar {
         const d = this.drag;
         this.drag = null;
         cancelAnimationFrame(this.frame);
-        window.removeEventListener("keydown", this.onWindowKeyDown, true);
-        document.body.style.userSelect = "";
+        window.removeEventListener('keydown', this.onWindowKeyDown, true);
+        document.body.style.userSelect = '';
         const r = d?.result;
         let call = null;
         if (commit && d && !d.moved) {
@@ -649,15 +656,15 @@ class Calendar {
             return;
         }
         if (commit && r) {
-            if ((d.kind === "create-time") || (d.kind === "create-day")) {
+            if ((d.kind === 'create-time') || (d.kind === 'create-day')) {
                 const rect = this.previews[0]?.getBoundingClientRect() ?? new DOMRect(d.x, d.y, 0, 0);
-                this.dotNet.invokeMethodAsync("OnSelect", format(r.start), format(r.end), r.allDay, ...anchorOf(rect)).catch(() => { });
-            } else if ((d.kind === "move-day") && !r.convert) {
+                this.dotNet.invokeMethodAsync('OnSelect', format(r.start), format(r.end), r.allDay, ...anchorOf(rect)).catch(() => { });
+            } else if ((d.kind === 'move-day') && !r.convert) {
                 if (r.shift) {
-                    call = this.dotNet.invokeMethodAsync("OnShift", d.id, r.shift, 0);
+                    call = this.dotNet.invokeMethodAsync('OnShift', d.id, r.shift, 0);
                 }
             } else if ((r.start !== d.start) || (r.end !== d.end) || r.allDay || r.convert) {
-                call = this.dotNet.invokeMethodAsync("OnMove", d.id, format(r.start), format(r.end), r.allDay);
+                call = this.dotNet.invokeMethodAsync('OnMove', d.id, format(r.start), format(r.end), r.allDay);
             }
         }
         if (call) {
@@ -685,14 +692,14 @@ class Calendar {
             }
         };
         state.observer = new MutationObserver(end);
-        state.observer.observe(this.root, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "data-start", "data-end"] });
+        state.observer.observe(this.root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'data-start', 'data-end'] });
         call.then(end, end);
     }
 
     restore() {
         this.hidePreviews(0);
-        for (const element of this.root.querySelectorAll(".mc-dragging")) {
-            element.classList.remove("mc-dragging");
+        for (const element of this.root.querySelectorAll('.mc-dragging')) {
+            element.classList.remove('mc-dragging');
         }
     }
 
@@ -701,21 +708,21 @@ class Calendar {
             return;
         }
         if (pending.item) {
-            this.dotNet.invokeMethodAsync("OnItemClick", pending.item.dataset.id, ...anchorOf(pending.item.getBoundingClientRect())).catch(() => { });
+            this.dotNet.invokeMethodAsync('OnItemClick', pending.item.dataset.id, ...anchorOf(pending.item.getBoundingClientRect())).catch(() => { });
             return;
         }
-        if (pending.kind === "create-time") {
+        if (pending.kind === 'create-time') {
             const at = this.timeAt(pending.x, pending.y, Math.floor);
             if (at) {
                 const ppm = this.hourHeight / 60;
                 const top = at.column.rect.top + ((at.minutes - dayStart(at.column.element.dataset.date)) * ppm);
-                this.dotNet.invokeMethodAsync("OnSelect", format(at.minutes), format(at.minutes + this.defaultMinutes), false, at.column.rect.left, top, at.column.rect.width, this.defaultMinutes * ppm).catch(() => { });
+                this.dotNet.invokeMethodAsync('OnSelect', format(at.minutes), format(at.minutes + this.defaultMinutes), false, at.column.rect.left, top, at.column.rect.width, this.defaultMinutes * ppm).catch(() => { });
             }
-        } else if (pending.kind === "create-day") {
+        } else if (pending.kind === 'create-day') {
             const cell = this.cellAt(pending.x, pending.y);
             if (cell) {
                 const date = cell.dataset.date;
-                this.dotNet.invokeMethodAsync("OnSelect", `${date}T00:00:00`, `${addDays(date, 1)}T00:00:00`, true, ...anchorOf(cell.getBoundingClientRect())).catch(() => { });
+                this.dotNet.invokeMethodAsync('OnSelect', `${date}T00:00:00`, `${addDays(date, 1)}T00:00:00`, true, ...anchorOf(cell.getBoundingClientRect())).catch(() => { });
             }
         }
     }
@@ -724,15 +731,15 @@ class Calendar {
         const entry = this.entryOf(e.target);
         if (entry) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
+            this.dotNet.invokeMethodAsync('OnItemClick', entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
             return;
         }
-        const more = e.target instanceof Element ? e.target.closest(".mc-more") : null;
+        const more = e.target instanceof Element ? e.target.closest('.mc-more') : null;
         if (!more || !this.root.contains(more)) {
             return;
         }
         e.preventDefault();
-        this.dotNet.invokeMethodAsync("OnMoreClick", more.dataset.date, ...anchorOf(more.getBoundingClientRect())).catch(() => { });
+        this.dotNet.invokeMethodAsync('OnMoreClick', more.dataset.date, ...anchorOf(more.getBoundingClientRect())).catch(() => { });
     }
 
     suppressClick() {
@@ -740,8 +747,8 @@ class Calendar {
             e.preventDefault();
             e.stopPropagation();
         };
-        window.addEventListener("click", onClick, true);
-        setTimeout(() => window.removeEventListener("click", onClick, true), 0);
+        window.addEventListener('click', onClick, true);
+        setTimeout(() => window.removeEventListener('click', onClick, true), 0);
     }
 
     dispose() {
@@ -753,11 +760,11 @@ class Calendar {
         this.clearTouch();
         this.pending = null;
         this.removePointer();
-        this.root.removeEventListener("pointerdown", this.onPointerDown);
-        this.root.removeEventListener("touchstart", this.onTouchStart, { passive: true });
-        this.root.removeEventListener("keydown", this.onKeyDown);
-        this.root.removeEventListener("click", this.onClick);
-        this.root.removeEventListener("touchmove", this.onRootTouchMove, { passive: false });
+        this.root.removeEventListener('pointerdown', this.onPointerDown);
+        this.root.removeEventListener('touchstart', this.onTouchStart, { passive: true });
+        this.root.removeEventListener('keydown', this.onKeyDown);
+        this.root.removeEventListener('click', this.onClick);
+        this.root.removeEventListener('touchmove', this.onRootTouchMove, { passive: false });
         this.resizeObserver.disconnect();
         for (const element of this.previews) {
             element.remove();
@@ -772,26 +779,29 @@ class MiniMonth {
         this.root = root;
         this.dotNet = dotNet;
         this.onKeyDown = (e) => this.keyDown(e);
-        root.addEventListener("keydown", this.onKeyDown);
+        root.addEventListener('keydown', this.onKeyDown);
     }
 
     keyDown(e) {
-        const cell = e.target instanceof Element ? e.target.closest("td[data-date]") : null;
+        const cell = e.target instanceof Element ? e.target.closest('td[data-date]') : null;
         if (!cell || !this.root.contains(cell) || e.altKey || e.ctrlKey || e.metaKey) {
             return;
         }
-        if ((e.key === "Enter") || (e.key === " ")) {
+        if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnSelectDate", cell.dataset.date).catch(() => { });
+            this.dotNet.invokeMethodAsync('OnSelectDate', cell.dataset.date).catch(() => { });
             return;
         }
         const date = targetOf(cell, e);
         if (!date) {
+            if (isMoveKey(e.key)) {
+                e.preventDefault();
+            }
             return;
         }
         e.preventDefault();
         this.root.querySelector(`td[data-date="${date}"]:not(.mm-outside)`)?.focus();
-        this.dotNet.invokeMethodAsync("OnFocusDate", date).catch(() => { });
+        this.dotNet.invokeMethodAsync('OnFocusDate', date).catch(() => { });
     }
 
     focus() {
@@ -799,7 +809,7 @@ class MiniMonth {
     }
 
     dispose() {
-        this.root.removeEventListener("keydown", this.onKeyDown);
+        this.root.removeEventListener('keydown', this.onKeyDown);
         delete this.root.dataset.attached;
     }
 }
@@ -807,17 +817,19 @@ class MiniMonth {
 export function attach(root, dotNet, scrollHour) {
     const calendar = new Calendar(root, dotNet);
     calendar.scroll(scrollHour);
-    root.dataset.attached = "";
     return {
         scroll: (hour) => calendar.scroll(hour),
         fit: () => calendar.fit(),
+        ready: () => {
+            root.dataset.attached = '';
+        },
         dispose: () => calendar.dispose()
     };
 }
 
 export function attachMiniMonth(root, dotNet) {
     const miniMonth = new MiniMonth(root, dotNet);
-    root.dataset.attached = "";
+    root.dataset.attached = '';
     return {
         focus: () => miniMonth.focus(),
         dispose: () => miniMonth.dispose()

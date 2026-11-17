@@ -37,24 +37,24 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Theory]
-    [InlineData("週", ".mc-timegrid")]
-    [InlineData("スケジュール", ".mc-schedule")]
-    public async Task ItemsKeepTheirElementsInTheOtherViews(string view, string container)
+    [InlineData("週", ".mc-timegrid", "ランチ", "誕生日", "研修")]
+    [InlineData("スケジュール", ".mc-schedule", "予定 2", "旅行", "予定 1")]
+    public async Task ItemsKeepTheirElementsInTheOtherViews(string view, string container, string first, string second, string work)
     {
         var sample = await OpenAsync("server");
         await sample.ShowAsync(view);
         await Expect(sample.Calendar.Locator(container)).ToBeVisibleAsync();
-        var lunch = sample.Item("ランチ").First;
-        var birthday = sample.Item("誕生日").First;
-        await Expect(lunch).ToBeVisibleAsync();
-        await Expect(birthday).ToBeVisibleAsync();
-        await lunch.EvaluateAsync("element => { window.lunch = element; }");
-        await birthday.EvaluateAsync("element => { window.birthday = element; }");
+        var kept = sample.Item(first).First;
+        var other = sample.Item(second).First;
+        await Expect(kept).ToBeVisibleAsync();
+        await Expect(other).ToBeVisibleAsync();
+        await kept.EvaluateAsync("element => { window.kept = element; }");
+        await other.EvaluateAsync("element => { window.other = element; }");
 
         await sample.Page.GetByLabel("仕事").UncheckAsync();
-        await Expect(sample.Item("研修")).ToHaveCountAsync(0);
+        await Expect(sample.Item(work)).ToHaveCountAsync(0);
 
-        Assert.True(await sample.Page.EvaluateAsync<bool>("() => window.lunch.isConnected && window.birthday.isConnected"));
+        Assert.True(await sample.Page.EvaluateAsync<bool>("() => window.kept.isConnected && window.other.isConnected"));
     }
 
     [Fact]
@@ -93,6 +93,27 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Fact]
+    public async Task TheDragPreviewTakesTheFontOfTheCalendar()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        var lunch = sample.Item("ランチ").First;
+        await Expect(lunch).ToBeVisibleAsync();
+        await sample.Calendar.EvaluateAsync("calendar => calendar.style.setProperty('--mussel-font-family', 'monospace')");
+        var box = await lunch.BoundingBoxAsync() ?? throw new InvalidOperationException("The item is not shown.");
+        var (x, y) = (box.X + (box.Width / 2), box.Y + (box.Height / 2));
+
+        await page.Mouse.MoveAsync(x, y);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(x + 40, y + 40, new() { Steps = 5 });
+        var font = await page.Locator(".mc-preview").First.EvaluateAsync<string>("preview => getComputedStyle(preview).fontFamily");
+        await page.Keyboard.PressAsync("Escape");
+        await page.Mouse.UpAsync();
+
+        Assert.Equal("monospace", font);
+    }
+
+    [Fact]
     public async Task ALongPressOnAReadOnlyItemOpensIt()
     {
         var sample = await OpenAsync("server", true);
@@ -118,6 +139,26 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         await lunch.PressAsync("Enter");
         await sample.Calendar.Locator(".mc-allday-cell").First.ClickAsync();
         await sample.Calendar.Locator(".mc-column").First.ClickAsync();
+
+        Assert.Equal(0, await sample.UnhandledRejectionsAsync(4));
+    }
+
+    [Fact]
+    public async Task KeysWhoseCallsFailLeaveNoUnhandledRejections()
+    {
+        var sample = await OpenAsync("server");
+        await Expect(sample.Page.Locator(".mussel-mini-month[data-attached]")).ToHaveCountAsync(1);
+        await sample.RejectCallsAsync("OnDayClick", "OnYearFocus", "OnSelectDate", "OnFocusDate");
+        await sample.ShowAsync("年");
+        var day = sample.Calendar.Locator(".mc-year-day[tabindex='0']").First;
+        await Expect(day).ToBeVisibleAsync();
+
+        await day.FocusAsync();
+        await sample.Page.Keyboard.PressAsync("ArrowRight");
+        await sample.Page.Keyboard.PressAsync("Enter");
+        await sample.Page.Locator(".mussel-mini-month td[tabindex='0']").First.FocusAsync();
+        await sample.Page.Keyboard.PressAsync("ArrowRight");
+        await sample.Page.Keyboard.PressAsync("Enter");
 
         Assert.Equal(0, await sample.UnhandledRejectionsAsync(4));
     }

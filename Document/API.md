@@ -2,7 +2,7 @@
 
 ## 🗓️ MusselCalendarView
 
-The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached and loses it when the script is disposed, and so does the root of `MusselMiniMonth`.  
+The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached and the calls made before are applied, and loses it when the script is disposed. The root of `MusselMiniMonth` gets it once its script is attached.  
 
 | Name | Type | Default | Description |
 |---|---|---|---|
@@ -106,14 +106,24 @@ The days a view shows.
 | `StartTime`, `EndTime` | `Start` and `End` at 0:00 |
 | `Contains(day)` | Whether the range has the day |
 | `Of(view, day, firstDayOfWeek, dayCount)` | The range of a view; a month covers whole weeks, the schedule 30 days from the day, and a year January to December; at the end of the calendar the range moves back so that `End` fits |
-| `Move(view, day, direction, dayCount)` | The date of the previous (`-1`) or next (`1`) page; it stops at `DateOnly.MinValue` and `DateOnly.MaxValue` |
+| `Move(view, day, direction, dayCount)` | The date of the previous (`-1`) or next (`1`) page; at the ends of the calendar it stays on the first or last page that `Of` shows, and the month and year views keep the day |
 | `StartOfWeek(day, firstDayOfWeek)` | The first day of the week of the day, but not before 0001-01-01 |
 
 ## 🎨 Theme
 
-Set the variables on the root element with `style` or a class of your own. Add `mussel-dark` to a container or the root element for the dark values (the same class as the other Mussel libraries). Both views take the font from `--mussel-font-family`. `MusselMiniMonth` follows `--mussel-primary-text` and `--mussel-muted-text`, and takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
+Link `_content/MusselCalendar/MusselCalendar.css` in the page head. Colors come from CSS variables; set them on the root element with `style` or a class of your own. `mussel-dark` on a container or the root element switches to the dark values (the same class as the other Mussel libraries).  
 
-| Variable | Default | Description |
+These are shared with the other Mussel libraries.  
+
+| Variable | Use |
+|---|---|
+| `--mussel-primary-text`, `--mussel-muted-text` | Text and labels, as the defaults of `--mussel-calendar-text` and `--mussel-calendar-muted`; `MusselMiniMonth` reads them directly |
+| `--mussel-grid-line` | Grid lines, as the default of `--mussel-calendar-line` |
+| `--mussel-font-family` | Font family of both views |
+
+These are for the calendar only. `MusselMiniMonth` takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
+
+| Variable | Default | Use |
 |---|---|---|
 | `--mussel-calendar-line` | `--mussel-grid-line`, `#dadce0` | Grid lines |
 | `--mussel-calendar-text`, `--mussel-calendar-muted` | `--mussel-primary-text`, `#3c4043` and `--mussel-muted-text`, `#70757a` | Text and labels |
@@ -127,3 +137,7 @@ Set the variables on the root element with `style` or a class of your own. Add `
 | `--mussel-calendar-lane-height` | `22px` | Lanes of the all-day row and month cells |
 | `--mussel-calendar-schedule-date-width`, `--mussel-calendar-schedule-time-width` | `120px`, `120px` | The date and the time columns of the schedule |
 | `--mussel-calendar-mini-day-size` | `26px` | A day of `MusselMiniMonth`; the columns and the digits follow |
+
+## 🚧 Not supported yet
+
+Repeat rules, a time zone per item, reminders and saving. The view shows `CalendarItem`s in local time, and these belong to the application.

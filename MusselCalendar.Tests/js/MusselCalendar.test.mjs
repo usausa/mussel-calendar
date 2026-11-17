@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, addMonths, format, targetOf } from '../../MusselCalendar/wwwroot/MusselCalendar.js';
+import { addDays, addMonths, format, isMoveKey, targetOf } from '../../MusselCalendar/wwwroot/MusselCalendar.js';
 
 const key = (date, name, cellIndex = 0, shiftKey = false) => targetOf({ dataset: { date }, cellIndex }, { key: name, shiftKey });
 
@@ -19,4 +19,18 @@ test('keys stop at the first and the last day', () => {
     assert.equal(key('9999-12-15', 'PageDown', 0, true), null);
     assert.equal(key('0001-02-15', 'PageUp'), '0001-01-15');
     assert.equal(key('0001-01-02', 'Home', 1), '0001-01-01');
+});
+
+test('home and end reach the first and the last day of the calendar', () => {
+    assert.equal(key('0001-01-03', 'Home', 3), '0001-01-01');
+    assert.equal(key('9999-12-29', 'End', 3), '9999-12-31');
+    assert.equal(key('2026-11-18', 'Home', 3), '2026-11-15');
+});
+
+test('moving keys are kept from the page even at the ends', () => {
+    assert.equal(isMoveKey('ArrowRight'), true);
+    assert.equal(isMoveKey('PageDown'), true);
+    assert.equal(isMoveKey('Home'), true);
+    assert.equal(isMoveKey('a'), false);
+    assert.equal(isMoveKey('Enter'), false);
 });

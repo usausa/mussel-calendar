@@ -40,12 +40,12 @@ public readonly struct CalendarRange : IEquatable<CalendarRange>
     public static DateOnly Move(CalendarViewKind view, DateOnly day, int direction, int dayCount) =>
         view switch
         {
-            CalendarViewKind.Day => AddDays(day, direction),
-            CalendarViewKind.Days => AddDays(day, (long)direction * Math.Max(dayCount, 1)),
-            CalendarViewKind.Week => AddDays(day, (long)direction * 7),
-            CalendarViewKind.Schedule => AddDays(day, (long)direction * ScheduleDays),
-            CalendarViewKind.Year => AddMonths(day, (long)direction * 12),
-            _ => AddMonths(day, direction)
+            CalendarViewKind.Day => MoveDays(day, direction, 1),
+            CalendarViewKind.Days => MoveDays(day, direction, Math.Clamp(dayCount, 1, DateOnly.MaxValue.DayNumber)),
+            CalendarViewKind.Week => MoveDays(day, direction, 7),
+            CalendarViewKind.Schedule => MoveDays(day, direction, ScheduleDays),
+            CalendarViewKind.Year => MoveYears(day, direction),
+            _ => MoveMonths(day, direction)
         };
 
     public static DateOnly StartOfWeek(DateOnly day, DayOfWeek firstDayOfWeek)
@@ -93,14 +93,25 @@ public readonly struct CalendarRange : IEquatable<CalendarRange>
         return new CalendarRange(start, start.AddDays(weeks * 7));
     }
 
-    private static DateOnly AddDays(DateOnly day, long days) =>
-        DateOnly.FromDayNumber((int)Math.Clamp(day.DayNumber + days, 0, DateOnly.MaxValue.DayNumber));
-
-    private static DateOnly AddMonths(DateOnly day, long months)
+    private static DateOnly MoveDays(DateOnly day, int direction, int pageDays)
     {
-        var index = Math.Clamp(((day.Year - 1) * 12L) + day.Month - 1 + months, 0, (DateOnly.MaxValue.Year * 12L) - 1);
+        var last = DateOnly.MaxValue.DayNumber - pageDays;
+        return DateOnly.FromDayNumber((int)Math.Clamp(Math.Min(day.DayNumber, last) + ((long)direction * pageDays), 0, last));
+    }
+
+    private static DateOnly MoveMonths(DateOnly day, int direction)
+    {
+        var last = ((LastShownMonth.Year - 1) * 12L) + LastShownMonth.Month - 1;
+        var index = Math.Clamp(Math.Min(((day.Year - 1) * 12L) + day.Month - 1, last) + direction, 0, last);
         var year = (int)(index / 12) + 1;
         var month = (int)(index % 12) + 1;
         return new DateOnly(year, month, Math.Min(day.Day, DateTime.DaysInMonth(year, month)));
+    }
+
+    private static DateOnly MoveYears(DateOnly day, int direction)
+    {
+        var last = DateOnly.MaxValue.Year - 1;
+        var year = (int)Math.Clamp((long)Math.Min(day.Year, last) + direction, DateOnly.MinValue.Year, last);
+        return new DateOnly(year, day.Month, Math.Min(day.Day, DateTime.DaysInMonth(year, day.Month)));
     }
 }

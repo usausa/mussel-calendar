@@ -320,25 +320,16 @@ public sealed partial class MusselCalendarView
     internal Task OnShift(string id, int days, int minutes)
     {
         var item = Find(id);
-        if ((item is null) || item.ReadOnly || ReadOnly || disposed)
-        {
-            return Task.CompletedTask;
-        }
-
-        var offset = TimeSpan.FromDays(days) + TimeSpan.FromMinutes(minutes);
-        return ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start + offset, item.End + offset, item.AllDay)));
+        var offset = ((Int128)days * TimeSpan.TicksPerDay) + ((Int128)minutes * TimeSpan.TicksPerMinute);
+        return (item is null) || item.ReadOnly || ReadOnly || disposed || !TryShift(item.Start, offset, out var start) || !TryShift(item.End, offset, out var end)
+            ? Task.CompletedTask
+            : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, start, end, item.AllDay)));
     }
 
     internal Task OnExtend(string id, int minutes)
     {
         var item = Find(id);
-        if ((item is null) || item.ReadOnly || item.AllDay || ReadOnly || disposed)
-        {
-            return Task.CompletedTask;
-        }
-
-        var end = item.End.AddMinutes(minutes);
-        return end <= item.Start
+        return (item is null) || item.ReadOnly || item.AllDay || ReadOnly || disposed || !TryShift(item.End, (Int128)minutes * TimeSpan.TicksPerMinute, out var end) || (end <= item.Start)
             ? Task.CompletedTask
             : ReportAsync(() => ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, end, false)));
     }
@@ -387,7 +378,8 @@ public sealed partial class MusselCalendarView
             }
 
             reference = DotNetObjectReference.Create(new CalendarScriptBridge(this));
-            instance = await module.InvokeAsync<IJSObjectReference>("attach", element, reference, ScrollHour).ConfigureAwait(true);
+            var attached = await module.InvokeAsync<IJSObjectReference>("attach", element, reference, ScrollHour).ConfigureAwait(true);
+            instance = attached;
             if (disposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
@@ -397,16 +389,32 @@ public sealed partial class MusselCalendarView
             if (pendingScroll)
             {
                 pendingScroll = false;
-                await instance.InvokeVoidAsync("scroll", ScrollHour).ConfigureAwait(true);
+                await SendAsync(attached, "scroll", ScrollHour).ConfigureAwait(true);
             }
 
-            if (pendingFit)
+            if (pendingFit && !disposed)
             {
                 pendingFit = false;
-                await instance.InvokeVoidAsync("fit").ConfigureAwait(true);
+                await SendAsync(attached, "fit").ConfigureAwait(true);
+            }
+
+            if (!disposed)
+            {
+                await attached.InvokeVoidAsync("ready").ConfigureAwait(true);
             }
         }
         catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private static async Task SendAsync(IJSObjectReference target, string identifier, params object?[] args)
+    {
+        try
+        {
+            await target.InvokeVoidAsync(identifier, args).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is JSException or OperationCanceledException)
         {
         }
     }
@@ -497,6 +505,14 @@ public sealed partial class MusselCalendarView
 
     private static bool TryParse(string value, out DateTime time) =>
         DateTime.TryParseExact(value, DateTimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out time);
+
+    private static bool TryShift(DateTime value, Int128 ticks, out DateTime result)
+    {
+        var shifted = value.Ticks + ticks;
+        var fits = (shifted >= DateTime.MinValue.Ticks) && (shifted <= DateTime.MaxValue.Ticks);
+        result = fits ? new DateTime((long)shifted, value.Kind) : default;
+        return fits;
+    }
 
     private static bool TryParseDate(string value, out DateOnly day) =>
         DateOnly.TryParseExact(value, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out day);

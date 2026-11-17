@@ -1,5 +1,9 @@
 namespace MusselCalendar;
 
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
+
 public sealed class MusselMiniMonthTests : BunitContext
 {
     private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
@@ -44,6 +48,27 @@ public sealed class MusselMiniMonthTests : BunitContext
         Assert.Equal(["2026-11-12"], cut.FindAll("td[aria-selected]").Select(static x => x.GetAttribute("data-date")));
         Assert.Equal(["2026-11-10"], cut.FindAll("td[aria-current='date']").Select(static x => x.GetAttribute("data-date")));
         Assert.Equal("Thursday, 12 November 2026", cut.Find("td[aria-selected='true']").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public async Task AFocusAskedForWhileTheScriptAttachesRunsOnceAfterIt()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "attachMiniMonth" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var next = new DateOnly(2026, 12, 3);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("attachMiniMonth", runtime.Module.Calls));
+
+        await cut.Find("td[data-date='2026-12-03']").ClickAsync(new MouseEventArgs());
+        cut.Render(parameters => parameters.Add(static p => p.Date, next));
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+        await cut.WaitForAssertionAsync(() => Assert.Contains("focus", runtime.Module.Calls));
+        cut.Render(static parameters => parameters.Add(static p => p.Highlight, CalendarRange.Of(CalendarViewKind.Week, new DateOnly(2026, 12, 3), DayOfWeek.Sunday, 1)));
+
+        Assert.Single(runtime.Module.Calls, static x => x == "focus");
     }
 
     [Fact]

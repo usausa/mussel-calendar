@@ -4,5 +4,8 @@
 
 <div class="date-page">
     <MusselMiniMonth @bind-Date="date" @bind-Month="ShownMonth" PreviousText="前の月" NextText="次の月" />
-    <MusselMiniMonth @bind-Date="date" Month="NextMonth" MonthChanged="OnNextMonthChanged" PreviousText="前の月" NextText="次の月" />
+    @if (NextMonth is { } next)
+    {
+        <MusselMiniMonth @bind-Date="date" Month="next" MonthChanged="OnNextMonthChanged" PreviousText="前の月" NextText="次の月" />
+    }
 </div>

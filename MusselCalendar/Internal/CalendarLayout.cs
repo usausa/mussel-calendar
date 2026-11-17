@@ -92,7 +92,7 @@ internal static class CalendarLayout
             for (var order = 0; order < items.Count; order++)
             {
                 var item = items[order];
-                var itemEnd = item.End > item.Start ? item.End : item.Start.AddTicks(1);
+                var itemEnd = item.End > item.Start ? item.End : item.Start.AddTicks(item.Start < DateTime.MaxValue ? 1 : 0);
                 if (InAllDayLane(item) || (itemEnd <= dayStart) || (item.Start >= dayEnd))
                 {
                     continue;

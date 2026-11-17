@@ -47,6 +47,115 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
+    public async Task AFailedCallThatWaitedForTheScriptDoesNotStopTheRest()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "attach", Fail = "scroll" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("attach", runtime.Module.Calls));
+
+        cut.Render(static parameters => parameters.Add(static p => p.View, CalendarViewKind.Week));
+        cut.Render(static parameters => parameters.Add(static p => p.View, CalendarViewKind.Month));
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
+        Assert.Equal(["attach", "scroll", "fit", "ready"], runtime.Module.Calls);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
+    }
+
+    [Fact]
+    public async Task AFitAskedForWhileTheScriptAttachesRunsAfterIt()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "attach" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("attach", runtime.Module.Calls));
+
+        cut.Render(static parameters => parameters.Add(static p => p.Date, new DateOnly(2026, 2, 12)));
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
+        await cut.WaitForAssertionAsync(() => Assert.Contains("fit", runtime.Module.Calls));
+    }
+
+    [Fact]
+    public async Task DisposingTellsTheScriptAndReleasesIt()
+    {
+        var runtime = new LateRuntime();
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselCalendarView>(static parameters => parameters.Add(static p => p.Date, Thursday));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
+
+        await DisposeComponentsAsync();
+
+        Assert.Contains("dispose", runtime.Module.Calls);
+        Assert.True(runtime.Module.Released);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisposingWhileTheScriptLoadsReleasesIt(bool attaching)
+    {
+        var instance = new LateModule();
+        var runtime = new LateRuntime { Module = { Hold = attaching ? "attach" : null, Returned = instance } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselCalendarView>(static parameters => parameters.Add(static p => p.Date, Thursday));
+        if (attaching)
+        {
+            await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+            await cut.WaitForAssertionAsync(() => Assert.Contains("attach", runtime.Module.Calls));
+        }
+
+        await DisposeComponentsAsync();
+        await cut.InvokeAsync(() =>
+        {
+            if (attaching)
+            {
+                runtime.Module.Resume.SetResult();
+            }
+            else
+            {
+                runtime.Import.SetResult(runtime.Module);
+            }
+        });
+
+        await cut.WaitForAssertionAsync(() => Assert.True(runtime.Module.Released));
+        Assert.Equal(attaching, instance.Released);
+        Assert.Equal(attaching, instance.Calls.Contains("dispose"));
+        Assert.DoesNotContain("ready", instance.Calls);
+    }
+
+    [Fact]
+    public async Task DisposingWhileACallThatWaitedRunsStopsTheRest()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "scroll" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        cut.Render(static parameters => parameters.Add(static p => p.View, CalendarViewKind.Week));
+        cut.Render(static parameters => parameters.Add(static p => p.View, CalendarViewKind.Month));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("scroll", runtime.Module.Calls));
+
+        await DisposeComponentsAsync();
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
+        Assert.DoesNotContain("fit", runtime.Module.Calls);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
+    }
+
+    [Fact]
     public void MonthViewRendersWholeWeeks()
     {
         var cut = Render<MusselCalendarView>(static parameters => parameters
@@ -667,7 +776,7 @@ public sealed class MusselCalendarViewTests : BunitContext
     [InlineData(CalendarViewKind.Month)]
     [InlineData(CalendarViewKind.Schedule)]
     [InlineData(CalendarViewKind.Year)]
-    public void EveryViewShowsTheLastDays(CalendarViewKind view)
+    public void EveryViewDrawsAtTheEndOfTheCalendar(CalendarViewKind view)
     {
         var cut = Render<MusselCalendarView>(parameters => parameters
             .Add(static p => p.View, view)
@@ -710,6 +819,44 @@ public sealed class MusselCalendarViewTests : BunitContext
             .Add(static p => p.Items, new[] { item }));
 
         Assert.NotEmpty(cut.FindAll("[data-id='a']"));
+    }
+
+    [Fact]
+    public void ItemsThatStartAtTheEndOfTimeDoNotStopTheWeek()
+    {
+        CalendarItem[] items =
+        [
+            new CalendarItem { Id = "timed", Title = "timed", Start = DateTime.MaxValue, End = DateTime.MaxValue },
+            new CalendarItem { Id = "allDay", Title = "allDay", Start = DateTime.MaxValue, End = DateTime.MaxValue, AllDay = true },
+            Item("b", 9, 10)
+        ];
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Week)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items));
+
+        Assert.NotEmpty(cut.FindAll("[data-id='b']"));
+    }
+
+    [Fact]
+    public async Task ShiftsAndExtensionsPastTheEndsOfTimeDoNothing()
+    {
+        var late = new CalendarItem { Id = "late", Title = "late", Start = Thursday.ToDateTime(new TimeOnly(9, 0)), End = DateTime.MaxValue };
+        var early = new CalendarItem { Id = "early", Title = "early", Start = DateTime.MinValue, End = DateTime.MinValue.AddHours(1) };
+        var changes = new List<CalendarItemChangeEventArgs>();
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { late, early })
+            .Add(static p => p.ItemChanged, changes.Add));
+
+        await cut.InvokeAsync(() => cut.Instance.OnShift("late", 1, 0));
+        await cut.InvokeAsync(() => cut.Instance.OnExtend("late", 15));
+        await cut.InvokeAsync(() => cut.Instance.OnShift("early", 0, -30));
+        await cut.InvokeAsync(() => cut.Instance.OnShift("early", -1, 0));
+        await cut.InvokeAsync(() => cut.Instance.OnShift("early", int.MaxValue, 0));
+
+        Assert.Empty(changes);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
     private static CalendarItem Item(string id, double startHour, double endHour)

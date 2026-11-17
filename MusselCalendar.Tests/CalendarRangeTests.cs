@@ -109,9 +109,34 @@ public sealed class CalendarRangeTests
     [InlineData(CalendarViewKind.Month)]
     [InlineData(CalendarViewKind.Schedule)]
     [InlineData(CalendarViewKind.Year)]
-    public void MovesStopAtTheEndsOfTheCalendar(CalendarViewKind view)
+    public void MovesStayOnTheFirstAndLastPages(CalendarViewKind view)
     {
-        Assert.Equal(DateOnly.MaxValue, CalendarRange.Move(view, DateOnly.MaxValue, 1, 4));
+        var last = CalendarRange.Of(view, DateOnly.MaxValue, DayOfWeek.Sunday, 4);
+        var next = CalendarRange.Move(view, DateOnly.MaxValue, 1, 4);
+        var back = CalendarRange.Move(view, DateOnly.MaxValue, -1, 4);
+
+        Assert.Equal(last, CalendarRange.Of(view, next, DayOfWeek.Sunday, 4));
+        Assert.Equal(next, CalendarRange.Move(view, next, 1, 4));
+        Assert.NotEqual(last, CalendarRange.Of(view, back, DayOfWeek.Sunday, 4));
+        Assert.Equal(CalendarRange.Of(view, back, DayOfWeek.Sunday, 4), CalendarRange.Of(view, CalendarRange.Move(view, next, -1, 4), DayOfWeek.Sunday, 4));
         Assert.Equal(DateOnly.MinValue, CalendarRange.Move(view, DateOnly.MinValue, -1, 4));
+    }
+
+    [Theory]
+    [InlineData(CalendarViewKind.Day, "9999-12-31", -1, "9999-12-29")]
+    [InlineData(CalendarViewKind.Days, "9999-12-30", 1, "9999-12-27")]
+    [InlineData(CalendarViewKind.Week, "9999-12-31", -1, "9999-12-17")]
+    [InlineData(CalendarViewKind.Schedule, "9999-12-20", 1, "9999-12-01")]
+    [InlineData(CalendarViewKind.Month, "9999-12-15", 1, "9999-11-15")]
+    [InlineData(CalendarViewKind.Month, "9999-12-31", -1, "9999-10-31")]
+    [InlineData(CalendarViewKind.Year, "9999-06-15", 1, "9998-06-15")]
+    [InlineData(CalendarViewKind.Year, "9999-06-15", -1, "9997-06-15")]
+    [InlineData(CalendarViewKind.Year, "0001-06-15", -1, "0001-06-15")]
+    [InlineData(CalendarViewKind.Month, "0001-01-15", -1, "0001-01-15")]
+    public void MovesKeepTheDayOnTheLastPage(CalendarViewKind view, string day, int direction, string expected)
+    {
+        var moved = CalendarRange.Move(view, DateOnly.Parse(day, CultureInfo.InvariantCulture), direction, 4);
+
+        Assert.Equal(DateOnly.Parse(expected, CultureInfo.InvariantCulture), moved);
     }
 }

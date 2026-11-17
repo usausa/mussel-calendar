@@ -21,6 +21,10 @@ internal sealed class LateModule : IJSObjectReference
 
     public string? Hold { get; set; }
 
+    public string? Fail { get; set; }
+
+    public LateModule? Returned { get; set; }
+
     public TaskCompletionSource Resume { get; } = new();
 
     public bool Released { get; private set; }
@@ -35,7 +39,12 @@ internal sealed class LateModule : IJSObjectReference
     {
         ObjectDisposedException.ThrowIf(Released, this);
         Calls.Add(identifier);
-        var result = typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)this : default!;
+        if (identifier == Fail)
+        {
+            return ValueTask.FromException<TValue>(new JSException("The call failed."));
+        }
+
+        var result = typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)(Returned ?? this) : default!;
         return identifier == Hold
             ? new ValueTask<TValue>(Resume.Task.ContinueWith(_ => result, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default))
             : new ValueTask<TValue>(result);
@@ -45,7 +54,12 @@ internal sealed class LateModule : IJSObjectReference
     {
         ObjectDisposedException.ThrowIf(Released, this);
         Calls.Add(identifier);
-        var result = typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)this : default!;
+        if (identifier == Fail)
+        {
+            return ValueTask.FromException<TValue>(new JSException("The call failed."));
+        }
+
+        var result = typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)(Returned ?? this) : default!;
         return identifier == Hold
             ? new ValueTask<TValue>(Resume.Task.ContinueWith(_ => result, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default))
             : new ValueTask<TValue>(result);

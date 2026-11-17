@@ -11,7 +11,10 @@ public sealed class SamplePage(IBrowserContext context, IPage page) : IAsyncDisp
     public ILocator Item(string title) => Calendar.Locator("[data-id]").Filter(new() { HasText = title });
 
     public Task WaitForCalendarAsync() =>
-        page.Locator(".mussel-calendar[data-attached]").WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = 30_000 });
+        page.WaitForFunctionAsync(
+            "() => { const roots = document.querySelectorAll('.mussel-calendar, .mussel-mini-month'); return (roots.length > 0) && [...roots].every((root) => root.hasAttribute('data-attached')); }",
+            null,
+            new() { Timeout = 30_000 });
 
     public Task ShowAsync(string view) => page.GetByRole(AriaRole.Checkbox, new() { Name = view, Exact = true }).ClickAsync();
 

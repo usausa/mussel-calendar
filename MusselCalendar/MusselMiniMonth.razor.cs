@@ -113,6 +113,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
             givenCulture = culture;
             FormatCulture = CalendarCulture.Gregorian(culture);
         }
+
         var previous = month;
         if (monthGiven && (Month != shownMonth))
         {
@@ -148,11 +149,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
                 return;
             }
 
-            if (focusPending && (instance is not null) && (focusDay is { } day) && InMonth(day))
-            {
-                focusPending = false;
-                await instance.InvokeVoidAsync("focus").ConfigureAwait(true);
-            }
+            await FocusPendingAsync().ConfigureAwait(true);
         }
         catch (JSDisconnectedException)
         {
@@ -228,10 +225,28 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
             if (disposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
+                return;
             }
+
+            await FocusPendingAsync().ConfigureAwait(true);
         }
         catch (JSDisconnectedException)
         {
+        }
+    }
+
+    private async Task FocusPendingAsync()
+    {
+        if (focusPending && (instance is not null) && (focusDay is { } day) && InMonth(day))
+        {
+            focusPending = false;
+            try
+            {
+                await instance.InvokeVoidAsync("focus").ConfigureAwait(true);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
     }
 

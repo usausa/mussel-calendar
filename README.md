@@ -69,7 +69,7 @@ The `Example` project shows a calendar page with popups and the dark theme on Se
 
 | Part | Detail |
 |---|---|
-| Theme | CSS variables shared with MusselChart (`--mussel-primary-text`, `--mussel-muted-text`, `--mussel-grid-line`), and `--mussel-calendar-*` for the calendar; `MusselCalendar.css` adds the dark `mussel-dark` |
+| Theme | CSS variables shared with the Mussel family (`--mussel-primary-text`, `--mussel-muted-text`, `--mussel-grid-line`, `--mussel-font-family`), and `--mussel-calendar-*` for the calendar; `MusselCalendar.css` adds the dark `mussel-dark` |
 | Items | `Color` of each item; timed items of one day are a dot and a time in the month view |
 | Overlaps | Side by side (`Columns`) or stacked with an offset (`Stack`) |
 | Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them; `--mussel-calendar-schedule-date-width` and `--mussel-calendar-schedule-time-width` for the schedule; `--mussel-calendar-mini-day-size` for the mini month |
