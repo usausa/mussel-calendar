@@ -24,8 +24,14 @@
                 <tr>
                     @for (var i = 0; i < 7; i++)
                     {
-                        var day = Start.AddDays((week * 7) + i);
-                        <td class="@DayClass(day)" data-date="@IsoDate(day)" tabindex="@TabIndex(day)" aria-selected="@SelectedText(day)" aria-current="@CurrentText(day)" aria-label="@day.ToString("D", FormatCulture)" @onclick="() => SelectAsync(day)"><span>@day.Day</span></td>
+                        if (DayAt((week * 7) + i) is { } day)
+                        {
+                            <td class="@DayClass(day)" data-date="@IsoDate(day)" tabindex="@TabIndex(day)" aria-selected="@SelectedText(day)" aria-current="@CurrentText(day)" aria-label="@day.ToString("D", FormatCulture)" @onclick="() => SelectAsync(day)"><span>@day.Day</span></td>
+                        }
+                        else
+                        {
+                            <td class="mm-blank"></td>
+                        }
                     }
                 </tr>
             }

@@ -63,7 +63,7 @@ Show the items in an interactive component, and apply the changes the view repor
 <MusselCalendarView View="view" Date="date" FirstDayOfWeek="DayOfWeek.Monday" Items="items" />
 ```
 
-The `Example` project shows a calendar page with popups and the dark theme on Server and WebAssembly.  
+The `Example` project shows a calendar page with popups and the dark theme on Server and WebAssembly. On Server it uses the clock and time zone of the server.  
 
 ## 🎨 Look
 

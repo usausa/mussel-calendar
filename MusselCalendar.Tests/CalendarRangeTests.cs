@@ -87,4 +87,31 @@ public sealed class CalendarRangeTests
     {
         Assert.Equal(DateOnly.Parse(expected, CultureInfo.InvariantCulture), CalendarRange.Move(view, new DateOnly(2026, 11, 12), direction, 4));
     }
+
+    [Theory]
+    [InlineData(CalendarViewKind.Day, "9999-12-30", "9999-12-31")]
+    [InlineData(CalendarViewKind.Days, "9999-12-27", "9999-12-31")]
+    [InlineData(CalendarViewKind.Week, "9999-12-19", "9999-12-26")]
+    [InlineData(CalendarViewKind.Month, "9999-10-31", "9999-12-05")]
+    [InlineData(CalendarViewKind.Schedule, "9999-12-01", "9999-12-31")]
+    [InlineData(CalendarViewKind.Year, "9998-01-01", "9999-01-01")]
+    public void RangesAtTheLastDayMoveInside(CalendarViewKind view, string start, string end)
+    {
+        var range = CalendarRange.Of(view, DateOnly.MaxValue, DayOfWeek.Sunday, 4);
+
+        Assert.Equal((DateOnly.Parse(start, CultureInfo.InvariantCulture), DateOnly.Parse(end, CultureInfo.InvariantCulture)), (range.Start, range.End));
+    }
+
+    [Theory]
+    [InlineData(CalendarViewKind.Day)]
+    [InlineData(CalendarViewKind.Days)]
+    [InlineData(CalendarViewKind.Week)]
+    [InlineData(CalendarViewKind.Month)]
+    [InlineData(CalendarViewKind.Schedule)]
+    [InlineData(CalendarViewKind.Year)]
+    public void MovesStopAtTheEndsOfTheCalendar(CalendarViewKind view)
+    {
+        Assert.Equal(DateOnly.MaxValue, CalendarRange.Move(view, DateOnly.MaxValue, 1, 4));
+        Assert.Equal(DateOnly.MinValue, CalendarRange.Move(view, DateOnly.MinValue, -1, 4));
+    }
 }

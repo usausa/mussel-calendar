@@ -1,4 +1,4 @@
-namespace Example.Client.Components.Pages;
+namespace Example.Client.Models;
 
 public sealed class SampleCalendar
 {

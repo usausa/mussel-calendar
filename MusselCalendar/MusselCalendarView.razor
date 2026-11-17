@@ -23,7 +23,7 @@
                         }
                         @foreach (var bar in week.Bars)
                         {
-                            <div class="@MonthBarClass(bar)" @key="bar.Item.Id" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 1, 2)">
+                            <div class="@MonthBarClass(bar)" @key="KeyOf(bar.Item)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 1, 2)">
                                 @if (IsChip(bar))
                                 {
                                     <span class="mc-dot"></span>
@@ -65,7 +65,7 @@
                         @foreach (var item in group.Items)
                         {
                             var time = ScheduleTimeText(item, day);
-                            <div class="mc-schedule-item" @key="item.Id" data-id="@item.Id" tabindex="0" role="button" aria-label="@ItemLabel(item)" style="@ColorStyle(item)">
+                            <div class="mc-schedule-item" @key="KeyOf(item)" data-id="@item.Id" tabindex="0" role="button" aria-label="@ItemLabel(item)" style="@ColorStyle(item)">
                                 <span class="mc-dot"></span>
                                 <span class="mc-schedule-time" title="@time">@time</span>
                                 <span class="mc-schedule-title" title="@item.Title">@item.Title</span>
@@ -82,7 +82,8 @@
             @for (var i = 0; i < 12; i++)
             {
                 var first = range.Start.AddMonths(i);
-                var start = CalendarRange.StartOfWeek(first, FirstDayOfWeek);
+                var offset = CalendarRange.DaysIntoWeek(first, FirstDayOfWeek);
+                var days = DateTime.DaysInMonth(first.Year, first.Month);
                 var titleId = $"{idPrefix}-{i}";
                 <div class="mc-year-month">
                     <div class="mc-year-title" id="@titleId">@MonthName(first)</div>
@@ -96,18 +97,19 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @for (var week = 0; week < WeekCount(first, start); week++)
+                            @for (var week = 0; week < WeekCount(offset, days); week++)
                             {
                                 <tr>
                                     @for (var d = 0; d < 7; d++)
                                     {
-                                        var day = start.AddDays((week * 7) + d);
-                                        if (day.Month != first.Month)
+                                        var index = (week * 7) + d - offset;
+                                        if ((index < 0) || (index >= days))
                                         {
                                             <td class="mc-year-blank"></td>
                                         }
                                         else
                                         {
+                                            var day = first.AddDays(index);
                                             <td class="@YearDayClass(day)" data-date="@IsoDate(day)" tabindex="@YearTabIndex(day)" aria-current="@CurrentText(day)" aria-label="@YearDayLabel(day)" @onclick="() => DayClicked.InvokeAsync(day)"><span>@day.Day</span></td>
                                         }
                                     }
@@ -151,7 +153,7 @@
                 }
                 @foreach (var bar in allDayBars)
                 {
-                    <div class="@BarClass(bar)" @key="bar.Item.Id" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
+                    <div class="@BarClass(bar)" @key="KeyOf(bar.Item)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
                         <span class="mc-bar-title">@bar.Item.Title</span>
                     </div>
                 }
@@ -180,7 +182,7 @@
                                     continue;
                                 }
 
-                                <div class="@EventClass(segment)" @key="segment.Item.Id" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
+                                <div class="@EventClass(segment)" @key="KeyOf(segment.Item)" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
                                     <span class="mc-event-title">@segment.Item.Title</span>
                                     <span class="mc-event-time">@TimeText(segment.Item.Start) – @TimeText(segment.Item.End)</span>
                                     @if (segment.IsEnd && !segment.Item.ReadOnly && !ReadOnly)

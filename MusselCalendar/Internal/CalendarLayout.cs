@@ -21,14 +21,14 @@ internal static class CalendarLayout
 
     public static DateOnly EndDay(CalendarItem item)
     {
-        var last = DateOnly.FromDateTime(item.End);
+        var last = DateOnly.FromDateTime(item.End).DayNumber;
         if (!item.AllDay && (item.End.TimeOfDay > TimeSpan.Zero))
         {
-            last = last.AddDays(1);
+            last++;
         }
 
-        var first = FirstDay(item);
-        return last.DayNumber > first.DayNumber ? last : first.AddDays(1);
+        var first = FirstDay(item).DayNumber;
+        return DateOnly.FromDayNumber(Math.Min(Math.Max(last, first + 1), DateOnly.MaxValue.DayNumber));
     }
 
     public static int DayCount(CalendarItem item) => EndDay(item).DayNumber - FirstDay(item).DayNumber;

@@ -23,7 +23,9 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     private IJSObjectReference? instance;
 
-    private DotNetObjectReference<MusselMiniMonth>? reference;
+    private DotNetObjectReference<MiniMonthScriptBridge>? reference;
+
+    private CultureInfo? givenCulture;
 
     private DateOnly month;
 
@@ -81,15 +83,13 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private CultureInfo FormatCulture { get; set; } = CultureInfo.CurrentCulture;
+    internal CultureInfo FormatCulture { get; private set; } = CultureInfo.CurrentCulture;
 
     private string RootClass => AdditionalAttributes?.GetValueOrDefault("class") is { } extra ? $"mussel-mini-month {extra}" : "mussel-mini-month";
 
     private TimeProvider Clock => TimeProvider ?? TimeProvider.System;
 
     private DateOnly Today => DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
-
-    private DateOnly Start => CalendarRange.StartOfWeek(month, FirstDayOfWeek);
 
     private DateOnly FocusDay => (focusDay is { } day) && InMonth(day) ? day : InMonth(Date) ? Date : month;
 
@@ -107,7 +107,12 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     protected override Task OnParametersSetAsync()
     {
         today = Today;
-        FormatCulture = CalendarCulture.Gregorian(Culture ?? CultureInfo.CurrentCulture);
+        var culture = Culture ?? CultureInfo.CurrentCulture;
+        if (!ReferenceEquals(culture, givenCulture))
+        {
+            givenCulture = culture;
+            FormatCulture = CalendarCulture.Gregorian(culture);
+        }
         var previous = month;
         if (monthGiven && (Month != shownMonth))
         {
@@ -169,8 +174,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         reference?.Dispose();
     }
 
-    [JSInvokable]
-    public async Task OnFocusDate(string date)
+    internal async Task OnFocusDate(string date)
     {
         if (disposed || !TryParse(date, out var day))
         {
@@ -188,8 +192,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         StateHasChanged();
     }
 
-    [JSInvokable]
-    public Task OnSelectDate(string date) =>
+    internal Task OnSelectDate(string date) =>
         disposed || !TryParse(date, out var day) ? Task.CompletedTask : ReportAsync(() => SelectAsync(day));
 
     private async Task ReportAsync(Func<Task> operation)
@@ -220,8 +223,8 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
                 return;
             }
 
-            reference = DotNetObjectReference.Create(this);
-            instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", reference, element).ConfigureAwait(true);
+            reference = DotNetObjectReference.Create(new MiniMonthScriptBridge(this));
+            instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", element, reference).ConfigureAwait(true);
             if (disposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
@@ -307,6 +310,12 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     }
 
     private bool InMonth(DateOnly day) => (day.Year == month.Year) && (day.Month == month.Month);
+
+    private DateOnly? DayAt(int cell)
+    {
+        var number = month.DayNumber - CalendarRange.DaysIntoWeek(month, FirstDayOfWeek) + cell;
+        return (number < 0) || (number > DateOnly.MaxValue.DayNumber) ? null : DateOnly.FromDayNumber(number);
+    }
 
     private static DateOnly FirstOfMonth(DateOnly day) => new(day.Year, day.Month, 1);
 

@@ -1,5 +1,8 @@
 namespace MusselCalendar;
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
+
 public sealed class MusselCalendarViewTests : BunitContext
 {
     private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
@@ -23,6 +26,24 @@ public sealed class MusselCalendarViewTests : BunitContext
         var columns = cut.FindAll(".mc-column");
         Assert.Equal(7, columns.Count);
         Assert.Equal("2026-11-09", columns[0].GetAttribute("data-date"));
+    }
+
+    [Fact]
+    public async Task AScrollAskedForWhileTheScriptAttachesRunsAfterIt()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "attach" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselCalendarView>(static parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("attach", runtime.Module.Calls));
+
+        cut.Render(static parameters => parameters.Add(static p => p.View, CalendarViewKind.Week));
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
+        await cut.WaitForAssertionAsync(() => Assert.Contains("scroll", runtime.Module.Calls));
     }
 
     [Fact]
@@ -495,7 +516,7 @@ public sealed class MusselCalendarViewTests : BunitContext
         var cut = Render<MusselCalendarView>(parameters => parameters
             .Add(static p => p.View, CalendarViewKind.Month)
             .Add(static p => p.Date, new DateOnly(2026, 12, 15))
-            .Add(static p => p.Culture, new CultureInfo(culture)));
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo(culture)));
 
         Assert.Contains(expected, cut.FindAll(".mc-date").Select(static x => x.TextContent));
     }
@@ -513,6 +534,182 @@ public sealed class MusselCalendarViewTests : BunitContext
 
         Assert.Same(Renderer.UnhandledException, ended);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
+    }
+
+    [Fact]
+    public async Task CanceledHandlersAndLostConnectionsDoNotReachTheRenderer()
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { Item("a", 9, 10) })
+            .Add(static p => p.ItemClicked, static _ => throw new OperationCanceledException())
+            .Add(static p => p.DayClicked, static _ => throw new JSDisconnectedException("gone")));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => cut.InvokeAsync(() => cut.Instance.OnItemClick("a", 0, 0, 0, 0)));
+        await Assert.ThrowsAsync<JSDisconnectedException>(() => cut.InvokeAsync(() => cut.Instance.OnDayClick("2026-11-12")));
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.NotSame(Renderer.UnhandledException, ended);
+    }
+
+    [Fact]
+    public async Task AFailureAfterTheViewIsGoneDoesNotReachTheRenderer()
+    {
+        var pending = new TaskCompletionSource();
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { Item("a", 9, 10) })
+            .Add(p => p.ItemClicked, async _ =>
+            {
+                await pending.Task.ConfigureAwait(true);
+                throw new InvalidOperationException("late");
+            }));
+
+        var clicked = cut.InvokeAsync(() => cut.Instance.OnItemClick("a", 0, 0, 0, 0));
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+        pending.SetResult();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => clicked);
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.NotSame(Renderer.UnhandledException, ended);
+    }
+
+    [Theory]
+    [InlineData(CalendarViewKind.Month)]
+    [InlineData(CalendarViewKind.Week)]
+    [InlineData(CalendarViewKind.Schedule)]
+    public void ItemsThatShareAnIdAreStillDrawn(CalendarViewKind view)
+    {
+        var day = Thursday.ToDateTime(TimeOnly.MinValue);
+        var timed = Item("c", 13, 14);
+        var allDay = new CalendarItem { Id = "d", Title = "d", Start = day.AddDays(1), End = day.AddDays(2), AllDay = true };
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.View, view)
+            .Add(static p => p.MonthLanes, 6)
+            .Add(static p => p.Items, new[] { timed, allDay }));
+
+        cut.Render(parameters => parameters.Add(static p => p.Items, new[]
+        {
+            Item("a", 9, 10),
+            Item("a", 11, 12),
+            new CalendarItem { Id = "b", Title = "b", Start = day, End = day.AddDays(1), AllDay = true },
+            new CalendarItem { Id = "b", Title = "b", Start = day, End = day.AddDays(1), AllDay = true },
+            timed,
+            allDay
+        }));
+
+        Assert.NotEmpty(cut.FindAll("[data-id='a']"));
+        Assert.NotEmpty(cut.FindAll("[data-id='b']"));
+    }
+
+    [Fact]
+    public void ColorsWithAnAlphaAreKeptAndUrlsAreLeftOut()
+    {
+        string[] colors = ["rgb(87 148 242 / 80%)", "var(--brand)", "url(//example.com/x.png)", new('a', 65), new('a', 64), string.Empty];
+        var items = new CalendarItem[colors.Length];
+        for (var i = 0; i < colors.Length; i++)
+        {
+            items[i] = Item($"c{i}", 9 + i, 10 + i);
+            items[i].Color = colors[i];
+        }
+
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items));
+
+        Assert.Contains("--mc-color: rgb(87 148 242 / 80%);", StyleOf(0), StringComparison.Ordinal);
+        Assert.Contains("--mc-color: var(--brand);", StyleOf(1), StringComparison.Ordinal);
+        Assert.DoesNotContain("--mc-color", StyleOf(2), StringComparison.Ordinal);
+        Assert.DoesNotContain("--mc-color", StyleOf(3), StringComparison.Ordinal);
+        Assert.Contains($"--mc-color: {colors[4]};", StyleOf(4), StringComparison.Ordinal);
+        Assert.DoesNotContain("--mc-color", StyleOf(5), StringComparison.Ordinal);
+
+        string StyleOf(int index) => cut.Find($".mc-event[data-id='c{index}']").GetAttribute("style") ?? string.Empty;
+    }
+
+    [Fact]
+    public void ACultureWithAnotherCalendarIsCopiedOnce()
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo("th-TH")));
+        var first = cut.Instance.FormatCulture;
+
+        cut.Render(static parameters => parameters.Add(static p => p.Date, Thursday.AddDays(1)));
+
+        Assert.Same(first, cut.Instance.FormatCulture);
+        Assert.IsType<GregorianCalendar>(first.DateTimeFormat.Calendar);
+    }
+
+    [Fact]
+    public async Task TimesThatCannotBeReadAreIgnored()
+    {
+        var raised = new List<string>();
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { Item("a", 9, 10) })
+            .Add(static p => p.RangeSelected, _ => raised.Add("select"))
+            .Add(static p => p.ItemChanged, _ => raised.Add("change")));
+
+        await cut.InvokeAsync(() => cut.Instance.OnSelect("1-01-01T10:00:00", "1-01-01T11:00:00", false, 0, 0, 0, 0));
+        await cut.InvokeAsync(() => cut.Instance.OnMove("a", "2026-11-13T12:00:00", "2026-11-13T25:00:00", false));
+
+        Assert.Empty(raised);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
+    }
+
+    [Theory]
+    [InlineData(CalendarViewKind.Day)]
+    [InlineData(CalendarViewKind.Days)]
+    [InlineData(CalendarViewKind.Week)]
+    [InlineData(CalendarViewKind.Month)]
+    [InlineData(CalendarViewKind.Schedule)]
+    [InlineData(CalendarViewKind.Year)]
+    public void EveryViewShowsTheLastDays(CalendarViewKind view)
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, view)
+            .Add(static p => p.Date, DateOnly.MaxValue));
+
+        Assert.Single(cut.FindAll(".mussel-calendar"));
+    }
+
+    [Fact]
+    public void TheLastMonthOfTheMonthViewIsNovember()
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, DateOnly.MaxValue));
+
+        Assert.False(cut.Find(".mc-month-cell[data-date='9999-11-30']").ClassList.Contains("mc-outside"));
+        Assert.True(cut.Find(".mc-month-cell[data-date='9999-12-01']").ClassList.Contains("mc-outside"));
+    }
+
+    [Fact]
+    public void TheFirstYearKeepsTheColumnsOfTheWeek()
+    {
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Year)
+            .Add(static p => p.Date, DateOnly.MinValue)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+
+        var january = cut.FindAll(".mc-year-grid")[0];
+        Assert.Equal("Su", january.QuerySelector("th")?.TextContent);
+        Assert.Equal([null, "0001-01-01"], january.QuerySelectorAll("tbody td").Take(2).Select(static x => x.GetAttribute("data-date")));
+    }
+
+    [Fact]
+    public void ItemsThatNeverEndAreShown()
+    {
+        var item = new CalendarItem { Id = "a", Title = "a", Start = Thursday.ToDateTime(new TimeOnly(9, 0)), End = DateTime.MaxValue };
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { item }));
+
+        Assert.NotEmpty(cut.FindAll("[data-id='a']"));
     }
 
     private static CalendarItem Item(string id, double startHour, double endHour)

@@ -58,7 +58,25 @@ public sealed class MusselMiniMonthTests : BunitContext
         cut.FindAll(".mm-nav")[0].Click();
 
         Assert.Null(shown);
-        Assert.Equal(42, cut.FindAll(".mm-day").Count);
+        Assert.Equal("Su", cut.Find("th").TextContent);
+        Assert.Equal([null, "0001-01-01"], cut.FindAll("tbody td").Take(2).Select(static x => x.GetAttribute("data-date")));
+    }
+
+    [Fact]
+    public void TheLastMonthDoesNotGoForward()
+    {
+        DateOnly? shown = null;
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, DateOnly.MaxValue)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture)
+            .Add(static p => p.MonthChanged, month => shown = month));
+
+        cut.FindAll(".mm-nav")[1].Click();
+
+        var cells = cut.FindAll("tbody td");
+        Assert.Null(shown);
+        Assert.Equal("9999-12-31", cells[33].GetAttribute("data-date"));
+        Assert.All(cells.Skip(34), static x => Assert.Null(x.GetAttribute("data-date")));
     }
 
     [Fact]
@@ -173,6 +191,34 @@ public sealed class MusselMiniMonthTests : BunitContext
 
         Assert.Same(Renderer.UnhandledException, ended);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
+    }
+
+    [Fact]
+    public async Task AnExceptionFromMonthChangedWhileFocusingReachesTheRenderer()
+    {
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.MonthChanged, static _ => throw new InvalidOperationException("app")));
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => cut.Instance.OnFocusDate("2026-12-03")));
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.Same(Renderer.UnhandledException, ended);
+        Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
+    }
+
+    [Fact]
+    public void ACultureWithAnotherCalendarIsCopiedOnce()
+    {
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.GetCultureInfo("th-TH")));
+        var first = cut.Instance.FormatCulture;
+
+        cut.Render(static parameters => parameters.Add(static p => p.Date, Thursday.AddDays(1)));
+
+        Assert.Same(first, cut.Instance.FormatCulture);
+        Assert.IsType<GregorianCalendar>(first.DateTimeFormat.Calendar);
     }
 
     [Fact]

@@ -6,20 +6,30 @@ const scrollSpeed = 16;
 const scrollMargin = 8;
 
 const pad = (n) => String(n).padStart(2, "0");
+const year = (d) => String(d.getUTCFullYear()).padStart(4, "0");
+const utc = (fullYear, month, day) => {
+    const d = new Date(0);
+    d.setUTCFullYear(fullYear, month, day);
+    return d;
+};
 const parse = (iso) => Date.parse(`${iso}Z`) / 60000;
-const format = (minutes) => {
+export const format = (minutes) => {
     const d = new Date(minutes * 60000);
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00`;
+    return `${year(d)}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00`;
 };
 const dayStart = (date) => parse(`${date}T00:00:00`);
 const dayDiff = (from, to) => Math.round((dayStart(to) - dayStart(from)) / 1440);
-const addDays = (date, days) => format(dayStart(date) + (days * 1440)).slice(0, 10);
-const addMonths = (date, months) => {
-    const first = new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1 + months, 1));
-    const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-    return `${first.getUTCFullYear()}-${pad(first.getUTCMonth() + 1)}-${pad(Math.min(Number(date.slice(8, 10)), last))}`;
+export const addDays = (date, days) => format(dayStart(date) + (days * 1440)).slice(0, 10);
+export const addMonths = (date, months) => {
+    const first = utc(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1 + months, 1);
+    const last = utc(first.getUTCFullYear(), first.getUTCMonth() + 1, 0).getUTCDate();
+    return `${year(first)}-${pad(first.getUTCMonth() + 1)}-${pad(Math.min(Number(date.slice(8, 10)), last))}`;
 };
-const targetOf = (cell, e) => {
+export const targetOf = (cell, e) => {
+    const date = stepOf(cell, e);
+    return (date !== null) && /^\d{4}-/.test(date) && (date >= "0001-01-01") ? date : null;
+};
+const stepOf = (cell, e) => {
     const date = cell.dataset.date;
     switch (e.key) {
         case "ArrowLeft":
@@ -222,7 +232,7 @@ class Calendar {
         if (entry) {
             if ((e.key === "Enter") || (e.key === " ")) {
                 e.preventDefault();
-                this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect()));
+                this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
             }
             return;
         }
@@ -233,7 +243,7 @@ class Calendar {
         const id = item.dataset.id;
         if ((e.key === "Enter") || (e.key === " ")) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnItemClick", id, ...anchorOf(item.getBoundingClientRect()));
+            this.dotNet.invokeMethodAsync("OnItemClick", id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
             return;
         }
         if (!e.altKey) {
@@ -264,7 +274,7 @@ class Calendar {
         }
         if ((e.key === "Enter") || (e.key === " ")) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnDayClick", cell.dataset.date);
+            this.dotNet.invokeMethodAsync("OnDayClick", cell.dataset.date).catch(() => { });
             return;
         }
         const date = targetOf(cell, e);
@@ -277,7 +287,7 @@ class Calendar {
             return;
         }
         next.focus();
-        this.dotNet.invokeMethodAsync("OnYearFocus", date);
+        this.dotNet.invokeMethodAsync("OnYearFocus", date).catch(() => { });
     }
 
     pointerDown(e) {
@@ -641,7 +651,7 @@ class Calendar {
         if (commit && r) {
             if ((d.kind === "create-time") || (d.kind === "create-day")) {
                 const rect = this.previews[0]?.getBoundingClientRect() ?? new DOMRect(d.x, d.y, 0, 0);
-                this.dotNet.invokeMethodAsync("OnSelect", format(r.start), format(r.end), r.allDay, ...anchorOf(rect));
+                this.dotNet.invokeMethodAsync("OnSelect", format(r.start), format(r.end), r.allDay, ...anchorOf(rect)).catch(() => { });
             } else if ((d.kind === "move-day") && !r.convert) {
                 if (r.shift) {
                     call = this.dotNet.invokeMethodAsync("OnShift", d.id, r.shift, 0);
@@ -691,7 +701,7 @@ class Calendar {
             return;
         }
         if (pending.item) {
-            this.dotNet.invokeMethodAsync("OnItemClick", pending.item.dataset.id, ...anchorOf(pending.item.getBoundingClientRect()));
+            this.dotNet.invokeMethodAsync("OnItemClick", pending.item.dataset.id, ...anchorOf(pending.item.getBoundingClientRect())).catch(() => { });
             return;
         }
         if (pending.kind === "create-time") {
@@ -699,13 +709,13 @@ class Calendar {
             if (at) {
                 const ppm = this.hourHeight / 60;
                 const top = at.column.rect.top + ((at.minutes - dayStart(at.column.element.dataset.date)) * ppm);
-                this.dotNet.invokeMethodAsync("OnSelect", format(at.minutes), format(at.minutes + this.defaultMinutes), false, at.column.rect.left, top, at.column.rect.width, this.defaultMinutes * ppm);
+                this.dotNet.invokeMethodAsync("OnSelect", format(at.minutes), format(at.minutes + this.defaultMinutes), false, at.column.rect.left, top, at.column.rect.width, this.defaultMinutes * ppm).catch(() => { });
             }
         } else if (pending.kind === "create-day") {
             const cell = this.cellAt(pending.x, pending.y);
             if (cell) {
                 const date = cell.dataset.date;
-                this.dotNet.invokeMethodAsync("OnSelect", `${date}T00:00:00`, `${addDays(date, 1)}T00:00:00`, true, ...anchorOf(cell.getBoundingClientRect()));
+                this.dotNet.invokeMethodAsync("OnSelect", `${date}T00:00:00`, `${addDays(date, 1)}T00:00:00`, true, ...anchorOf(cell.getBoundingClientRect())).catch(() => { });
             }
         }
     }
@@ -714,7 +724,7 @@ class Calendar {
         const entry = this.entryOf(e.target);
         if (entry) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect()));
+            this.dotNet.invokeMethodAsync("OnItemClick", entry.dataset.id, ...anchorOf(entry.getBoundingClientRect())).catch(() => { });
             return;
         }
         const more = e.target instanceof Element ? e.target.closest(".mc-more") : null;
@@ -722,7 +732,7 @@ class Calendar {
             return;
         }
         e.preventDefault();
-        this.dotNet.invokeMethodAsync("OnMoreClick", more.dataset.date, ...anchorOf(more.getBoundingClientRect()));
+        this.dotNet.invokeMethodAsync("OnMoreClick", more.dataset.date, ...anchorOf(more.getBoundingClientRect())).catch(() => { });
     }
 
     suppressClick() {
@@ -753,6 +763,7 @@ class Calendar {
             element.remove();
         }
         this.previews = [];
+        delete this.root.dataset.attached;
     }
 }
 
@@ -771,7 +782,7 @@ class MiniMonth {
         }
         if ((e.key === "Enter") || (e.key === " ")) {
             e.preventDefault();
-            this.dotNet.invokeMethodAsync("OnSelectDate", cell.dataset.date);
+            this.dotNet.invokeMethodAsync("OnSelectDate", cell.dataset.date).catch(() => { });
             return;
         }
         const date = targetOf(cell, e);
@@ -780,7 +791,7 @@ class MiniMonth {
         }
         e.preventDefault();
         this.root.querySelector(`td[data-date="${date}"]:not(.mm-outside)`)?.focus();
-        this.dotNet.invokeMethodAsync("OnFocusDate", date);
+        this.dotNet.invokeMethodAsync("OnFocusDate", date).catch(() => { });
     }
 
     focus() {
@@ -789,10 +800,11 @@ class MiniMonth {
 
     dispose() {
         this.root.removeEventListener("keydown", this.onKeyDown);
+        delete this.root.dataset.attached;
     }
 }
 
-export function attach(dotNet, root, scrollHour) {
+export function attach(root, dotNet, scrollHour) {
     const calendar = new Calendar(root, dotNet);
     calendar.scroll(scrollHour);
     root.dataset.attached = "";
@@ -803,7 +815,7 @@ export function attach(dotNet, root, scrollHour) {
     };
 }
 
-export function attachMiniMonth(dotNet, root) {
+export function attachMiniMonth(root, dotNet) {
     const miniMonth = new MiniMonth(root, dotNet);
     root.dataset.attached = "";
     return {

@@ -2,7 +2,7 @@
 
 ## 🗓️ MusselCalendarView
 
-The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached, and so does the root of `MusselMiniMonth`.  
+The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached and loses it when the script is disposed, and so does the root of `MusselMiniMonth`.  
 
 | Name | Type | Default | Description |
 |---|---|---|---|
@@ -23,7 +23,7 @@ The calendar component. It fills the height of its parent, and other attributes 
 | `EmptyText` | `string` | `No events` | The text of a schedule without items |
 | `ItemCountFormat` | `string` | `Events: {0}` | The count of items added to the label of a day in the year view |
 | `HourFormat`, `TimeFormat` | `string` | `H:mm` | Formats of the hour labels and of the times of items, such as `h tt` and `h:mm tt`. A single custom specifier needs `%` (`%H`), because one letter alone is a standard format |
-| `MonthDayFormat` | `string?` | `null` | The format of the first day of a month in the month view, such as `MMM d`; unset writes `M/d` or `d/M` in the order of the culture |
+| `MonthDayFormat` | `string?` | `null` | The format of the first day of a month in the month view, such as `MMM d`; unset writes `M/d` or `d/M` in the order of the culture, with the date separator of the culture in place of `/` (`1.12` in de-DE) |
 | `ScheduleDayFormat` | `string` | `MMM, ddd` | The format beside each date of the schedule |
 | `SecondaryOffset` | `TimeSpan?` | `null` | The difference of a second time zone from the shown hours, such as `-9:00` for UTC beside Japan time; adds its hour labels, none when `null` |
 | `TimeZoneText`, `SecondaryTimeZoneText` | `string?` | `null` | Labels above the two columns of hour labels, shown with `SecondaryOffset` |
@@ -86,11 +86,11 @@ The days are an ARIA grid like the date picker of the WAI-ARIA Authoring Practic
 
 | Name | Description |
 |---|---|
-| `Id` | Required; unique in `Items` |
+| `Id` | Required and unique in `Items`. Items that share an `Id` are still drawn, and events name the first of them |
 | `Title` | Required |
 | `Start`, `End` | Local times; `End` is not included, so an all-day item of one day ends at 0:00 of the next day |
 | `AllDay` | Shows the item in the all-day lane |
-| `Color` | A CSS color; `--mussel-calendar-event` when `null`, or when it has characters other than letters, digits, space and `# ( ) , . % -` |
+| `Color` | A CSS color of up to 64 characters; `--mussel-calendar-event` when `null`, longer, with `url(`, or with characters other than letters, digits, space and `# ( ) , . % - /`. A value of these characters that is not a color makes the background transparent |
 | `ReadOnly` | The item cannot be moved or resized |
 
 Timed items of 24 hours or more are shown in the all-day lane, and timed items over midnight are split by day.  
@@ -105,13 +105,13 @@ The days a view shows.
 | `Start`, `End`, `Days` | The first day, the day after the last, and the number of days |
 | `StartTime`, `EndTime` | `Start` and `End` at 0:00 |
 | `Contains(day)` | Whether the range has the day |
-| `Of(view, day, firstDayOfWeek, dayCount)` | The range of a view; a month covers whole weeks, the schedule 30 days from the day, and a year January to December |
-| `Move(view, day, direction, dayCount)` | The date of the previous (`-1`) or next (`1`) page |
-| `StartOfWeek(day, firstDayOfWeek)` | The first day of the week of the day |
+| `Of(view, day, firstDayOfWeek, dayCount)` | The range of a view; a month covers whole weeks, the schedule 30 days from the day, and a year January to December; at the end of the calendar the range moves back so that `End` fits |
+| `Move(view, day, direction, dayCount)` | The date of the previous (`-1`) or next (`1`) page; it stops at `DateOnly.MinValue` and `DateOnly.MaxValue` |
+| `StartOfWeek(day, firstDayOfWeek)` | The first day of the week of the day, but not before 0001-01-01 |
 
-## 🎨 Styles
+## 🎨 Theme
 
-Set the variables on the root element with `style` or a class of your own. Add `mussel-dark` to a container or the root element for the dark values (the same class as MusselChart). `MusselMiniMonth` follows `--mussel-primary-text` and `--mussel-muted-text`, and takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
+Set the variables on the root element with `style` or a class of your own. Add `mussel-dark` to a container or the root element for the dark values (the same class as the other Mussel libraries). Both views take the font from `--mussel-font-family`. `MusselMiniMonth` follows `--mussel-primary-text` and `--mussel-muted-text`, and takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
 
 | Variable | Default | Description |
 |---|---|---|

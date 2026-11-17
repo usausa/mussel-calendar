@@ -23,6 +23,7 @@
     height: 100%;
     color: var(--mussel-calendar-text);
     background-color: var(--mussel-calendar-background);
+    font-family: var(--mussel-font-family, inherit);
     font-size: 12px;
     -webkit-user-select: none;
     user-select: none;
@@ -592,6 +593,7 @@
     display: grid;
     gap: 4px;
     color: var(--mussel-primary-text, #3c4043);
+    font-family: var(--mussel-font-family, inherit);
     font-size: 12px;
     -webkit-user-select: none;
     user-select: none;
@@ -654,6 +656,11 @@
 .mussel-mini-month .mm-day {
     padding: 0;
     cursor: pointer;
+}
+
+.mussel-mini-month .mm-blank {
+    height: calc(var(--mussel-calendar-mini-day-size) + 2px);
+    padding: 0;
 }
 
 .mussel-mini-month .mm-day:focus {

@@ -73,7 +73,7 @@ public sealed partial class AppFixture : IAsyncLifetime
         }
     }
 
-    public async Task<SamplePage> OpenAsync(string mode, bool touch = false)
+    public async Task<SamplePage> OpenAsync(string path, string mode, bool touch = false)
     {
         if (browser is null)
         {
@@ -82,7 +82,7 @@ public sealed partial class AppFixture : IAsyncLifetime
 
         var context = await browser.NewContextAsync(new() { HasTouch = touch, ViewportSize = new() { Width = 1280, Height = 900 } }).ConfigureAwait(false);
         var page = new SamplePage(context, await context.NewPageAsync().ConfigureAwait(false));
-        await page.Page.GotoAsync($"{BaseAddress}render-mode/{mode}?redirect={Uri.EscapeDataString("/")}").ConfigureAwait(false);
+        await page.Page.GotoAsync($"{BaseAddress}render-mode/{mode}?redirect={Uri.EscapeDataString("/" + path)}").ConfigureAwait(false);
         await page.WaitForCalendarAsync().ConfigureAwait(false);
         return page;
     }
