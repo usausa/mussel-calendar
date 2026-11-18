@@ -2,7 +2,7 @@
 
 ## 🗓️ MusselCalendarView
 
-The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached and the calls made before are applied, and loses it when the script is disposed. The root of `MusselMiniMonth` gets it once its script is attached.  
+The calendar component. It fills the height of its parent, and other attributes such as `class`, `style` and `id` go to the root element. The root gets `data-attached` once its script is attached and the calls made before are applied, and loses it when the script is disposed; so does the root of `MusselMiniMonth`.  
 
 | Name | Type | Default | Description |
 |---|---|---|---|
@@ -123,20 +123,20 @@ These are shared with the other Mussel libraries. Their light defaults follow th
 
 These are for the calendar only. `MusselMiniMonth` takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
 
-| Variable | Default | Use |
-|---|---|---|
-| `--mussel-calendar-line` | `--mussel-grid-line`, `#dadce0` | Grid lines |
-| `--mussel-calendar-text`, `--mussel-calendar-muted` | `--mussel-primary-text`, `#3c4043` and `--mussel-muted-text`, `#70757a` | Text and labels |
-| `--mussel-calendar-background`, `--mussel-calendar-outside` | `#ffffff`, `#f8f9fa` | The background, and days outside the month |
-| `--mussel-calendar-today`, `--mussel-calendar-today-text` | `#1a73e8`, `#ffffff` | The date of today, the focus ring and the marks of the year view |
-| `--mussel-calendar-now` | `#ea4335` | The current time line |
-| `--mussel-calendar-event`, `--mussel-calendar-event-text` | `#039be5`, `#ffffff` | Items without `Color` |
-| `--mussel-calendar-hover` | `rgba(60, 64, 67, 0.08)` | Dates, chips, hidden counts, schedule items and days of the year view under the pointer |
-| `--mussel-calendar-range`, `--mussel-calendar-range-border` | `rgba(26, 115, 232, 0.16)`, `rgba(26, 115, 232, 0.6)` | The range while selecting |
-| `--mussel-calendar-gutter` | `56px` | The width of the hour labels; twice with `SecondaryOffset` |
-| `--mussel-calendar-lane-height` | `22px` | Lanes of the all-day row and month cells |
-| `--mussel-calendar-schedule-date-width`, `--mussel-calendar-schedule-time-width` | `120px`, `120px` | The date and the time columns of the schedule |
-| `--mussel-calendar-mini-day-size` | `26px` | A day of `MusselMiniMonth`; the columns and the digits follow |
+| Variable | Use |
+|---|---|
+| `--mussel-calendar-line` | Grid lines |
+| `--mussel-calendar-text`, `--mussel-calendar-muted` | Text and labels |
+| `--mussel-calendar-background`, `--mussel-calendar-outside` | The background, and days outside the month |
+| `--mussel-calendar-today`, `--mussel-calendar-today-text` | The date of today, the focus ring and the marks of the year view |
+| `--mussel-calendar-now` | The current time line |
+| `--mussel-calendar-event`, `--mussel-calendar-event-text` | Items without `Color` |
+| `--mussel-calendar-hover` | Dates, chips, hidden counts, schedule items and days of the year view under the pointer |
+| `--mussel-calendar-range`, `--mussel-calendar-range-border` | The range while selecting |
+| `--mussel-calendar-gutter` | The width of the hour labels; twice with `SecondaryOffset` |
+| `--mussel-calendar-lane-height` | Lanes of the all-day row and month cells |
+| `--mussel-calendar-schedule-date-width`, `--mussel-calendar-schedule-time-width` | The date and the time columns of the schedule |
+| `--mussel-calendar-mini-day-size` | A day of `MusselMiniMonth`; the columns and the digits follow |
 
 ## 🚧 Not supported yet
 

@@ -44,10 +44,12 @@ internal sealed class LateModule : IJSObjectReference
             return ValueTask.FromException<TValue>(new JSException("The call failed."));
         }
 
-        var result = typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)(Returned ?? this) : default!;
-        return identifier == Hold
-            ? new ValueTask<TValue>(Resume.Task.ContinueWith(_ => result, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default))
-            : new ValueTask<TValue>(result);
+        if (identifier == Hold)
+        {
+            return new ValueTask<TValue>(Resume.Task.ContinueWith(_ => typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)(Returned ?? this) : default!, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default));
+        }
+
+        return typeof(TValue) == typeof(IJSObjectReference) ? new ValueTask<TValue>((TValue)(object)(Returned ?? this)) : default;
     }
 
     public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
@@ -59,9 +61,11 @@ internal sealed class LateModule : IJSObjectReference
             return ValueTask.FromException<TValue>(new JSException("The call failed."));
         }
 
-        var result = typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)(Returned ?? this) : default!;
-        return identifier == Hold
-            ? new ValueTask<TValue>(Resume.Task.ContinueWith(_ => result, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default))
-            : new ValueTask<TValue>(result);
+        if (identifier == Hold)
+        {
+            return new ValueTask<TValue>(Resume.Task.ContinueWith(_ => typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)(Returned ?? this) : default!, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default));
+        }
+
+        return typeof(TValue) == typeof(IJSObjectReference) ? new ValueTask<TValue>((TValue)(object)(Returned ?? this)) : default;
     }
 }

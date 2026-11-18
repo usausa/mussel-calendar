@@ -1,3 +1,4 @@
+/* Page */
 html,
 body {
     height: 100%;
@@ -10,6 +11,16 @@ body {
     height: 100vh;
 }
 
+.layout-body {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.page-card {
+    max-width: 400px;
+}
+
+/* Top bar */
 .layout-bar {
     display: flex;
     align-items: center;
@@ -28,6 +39,7 @@ body {
     flex: 1 1 auto;
 }
 
+/* Render mode switch */
 .mode-switch,
 .page-switch {
     display: flex;
@@ -50,11 +62,7 @@ body {
     color: #1a73e8;
 }
 
-.layout-body {
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
+/* Calendar */
 .app {
     display: grid;
     grid-template-columns: 256px minmax(0, 1fr);
@@ -232,11 +240,6 @@ body {
         margin-left: 0;
         order: -1;
     }
-}
-
-/* Page */
-.page-card {
-    max-width: 400px;
 }
 
 /* Blazor error UI */

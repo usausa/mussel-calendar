@@ -64,23 +64,24 @@ public sealed partial class CalendarPage
         get
         {
             var culture = CultureInfo.CurrentCulture;
+            var range = Range;
+            var first = range.Start;
             if (view == CalendarViewKind.Day)
             {
-                return date.ToString("yyyy年M月d日 (ddd)", culture);
+                return first.ToString("yyyy年M月d日 (ddd)", culture);
             }
 
             if (view == CalendarViewKind.Month)
             {
-                return date.ToString("yyyy年M月", culture);
+                return first.AddDays(6).ToString("yyyy年M月", culture);
             }
 
             if (view == CalendarViewKind.Year)
             {
-                return date.ToString("yyyy年", culture);
+                return first.ToString("yyyy年", culture);
             }
 
-            var first = Range.Start;
-            var last = Range.End.AddDays(-1);
+            var last = range.End.AddDays(-1);
             if (view == CalendarViewKind.Schedule)
             {
                 return $"{first.ToString("yyyy年M月d日", culture)} – {last.ToString(first.Year == last.Year ? "M月d日" : "yyyy年M月d日", culture)}";

@@ -133,7 +133,7 @@ public sealed class CalendarRangeTests
     [InlineData(CalendarViewKind.Year, "9999-06-15", -1, "9997-06-15")]
     [InlineData(CalendarViewKind.Year, "0001-06-15", -1, "0001-06-15")]
     [InlineData(CalendarViewKind.Month, "0001-01-15", -1, "0001-01-15")]
-    public void MovesKeepTheDayOnTheLastPage(CalendarViewKind view, string day, int direction, string expected)
+    public void MovesNearTheEndsOfTheCalendar(CalendarViewKind view, string day, int direction, string expected)
     {
         var moved = CalendarRange.Move(view, DateOnly.Parse(day, CultureInfo.InvariantCulture), direction, 4);
 

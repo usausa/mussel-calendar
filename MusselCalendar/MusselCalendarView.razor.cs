@@ -289,7 +289,7 @@ public sealed partial class MusselCalendarView
         self?.Dispose();
     }
 
-    internal async Task OnSelect(string start, string until, bool allDay, double left, double top, double width, double height)
+    internal async Task OnSelectAsync(string start, string until, bool allDay, double left, double top, double width, double height)
     {
         if (!ReadOnly && TryParse(start, out var begin) && TryParse(until, out var end))
         {
@@ -297,7 +297,7 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal async Task OnItemClick(string id, double left, double top, double width, double height)
+    internal async Task OnItemClickAsync(string id, double left, double top, double width, double height)
     {
         if (Find(id) is { } item)
         {
@@ -305,7 +305,7 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal async Task OnMove(string id, string start, string until, bool allDay)
+    internal async Task OnMoveAsync(string id, string start, string until, bool allDay)
     {
         var item = Find(id);
         if ((item is not null) && !item.ReadOnly && !ReadOnly && TryParse(start, out var begin) && TryParse(until, out var end))
@@ -314,7 +314,7 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal async Task OnShift(string id, int days, int minutes)
+    internal async Task OnShiftAsync(string id, int days, int minutes)
     {
         var item = Find(id);
         var offset = ((Int128)days * TimeSpan.TicksPerDay) + ((Int128)minutes * TimeSpan.TicksPerMinute);
@@ -324,7 +324,7 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal async Task OnExtend(string id, int minutes)
+    internal async Task OnExtendAsync(string id, int minutes)
     {
         var item = Find(id);
         if ((item is not null) && !item.ReadOnly && !item.AllDay && !ReadOnly && TryShift(item.End, (Int128)minutes * TimeSpan.TicksPerMinute, out var end) && (end > item.Start))
@@ -388,13 +388,13 @@ public sealed partial class MusselCalendarView
             if (pendingScroll)
             {
                 pendingScroll = false;
-                await SendAsync(attached, "scroll", ScrollHour).ConfigureAwait(true);
+                await ScriptCalls.SendAsync(attached, "scroll", ScrollHour).ConfigureAwait(true);
             }
 
             if (pendingFit && !IsDisposed)
             {
                 pendingFit = false;
-                await SendAsync(attached, "fit").ConfigureAwait(true);
+                await ScriptCalls.SendAsync(attached, "fit").ConfigureAwait(true);
             }
 
             if (!IsDisposed)
@@ -403,17 +403,6 @@ public sealed partial class MusselCalendarView
             }
         }
         catch (JSDisconnectedException)
-        {
-        }
-    }
-
-    private static async Task SendAsync(IJSObjectReference target, string identifier, params object?[] args)
-    {
-        try
-        {
-            await target.InvokeVoidAsync(identifier, args).ConfigureAwait(true);
-        }
-        catch (Exception ex) when (ex is JSException or OperationCanceledException)
         {
         }
     }
@@ -428,7 +417,14 @@ public sealed partial class MusselCalendarView
         {
             if (attached is not null)
             {
-                await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
+                try
+                {
+                    await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
+                }
+                catch (JSException)
+                {
+                }
+
                 await attached.DisposeAsync().ConfigureAwait(true);
             }
 
@@ -460,7 +456,7 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal async Task OnDayClick(string date)
+    internal async Task OnDayClickAsync(string date)
     {
         if (TryParseDate(date, out var day))
         {
@@ -477,7 +473,7 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    internal async Task OnMoreClick(string date, double left, double top, double width, double height)
+    internal async Task OnMoreClickAsync(string date, double left, double top, double width, double height)
     {
         if (!TryParseDate(date, out var day))
         {

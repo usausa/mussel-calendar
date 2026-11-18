@@ -149,7 +149,10 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
                 return;
             }
 
-            await FocusPendingAsync().ConfigureAwait(true);
+            if ((instance is not null) && TakePendingFocus())
+            {
+                await instance.InvokeVoidAsync("focus").ConfigureAwait(true);
+            }
         }
         catch (JSDisconnectedException)
         {
@@ -164,7 +167,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         self?.Dispose();
     }
 
-    internal async Task OnFocusDate(string date)
+    internal async Task OnFocusDateAsync(string date)
     {
         if (!TryParse(date, out var day))
         {
@@ -182,7 +185,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         StateHasChanged();
     }
 
-    internal async Task OnSelectDate(string date)
+    internal async Task OnSelectDateAsync(string date)
     {
         if (TryParse(date, out var day))
         {
@@ -219,33 +222,38 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
             }
 
             self = DotNetObjectReference.Create(new MiniMonthScriptBridge(this));
-            instance = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", element, self).ConfigureAwait(true);
+            var attached = await module.InvokeAsync<IJSObjectReference>("attachMiniMonth", element, self).ConfigureAwait(true);
+            instance = attached;
             if (IsDisposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);
                 return;
             }
 
-            await FocusPendingAsync().ConfigureAwait(true);
+            if (TakePendingFocus())
+            {
+                await ScriptCalls.SendAsync(attached, "focus").ConfigureAwait(true);
+            }
+
+            if (!IsDisposed)
+            {
+                await attached.InvokeVoidAsync("ready").ConfigureAwait(true);
+            }
         }
         catch (JSDisconnectedException)
         {
         }
     }
 
-    private async Task FocusPendingAsync()
+    private bool TakePendingFocus()
     {
-        if (focusPending && (instance is not null) && (focusDay is { } day) && InMonth(day))
+        if (!focusPending || (focusDay is not { } day) || !InMonth(day))
         {
-            focusPending = false;
-            try
-            {
-                await instance.InvokeVoidAsync("focus").ConfigureAwait(true);
-            }
-            catch (JSDisconnectedException)
-            {
-            }
+            return false;
         }
+
+        focusPending = false;
+        return true;
     }
 
     private async Task ReleaseAsync()
@@ -258,7 +266,14 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         {
             if (attached is not null)
             {
-                await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
+                try
+                {
+                    await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
+                }
+                catch (JSException)
+                {
+                }
+
                 await attached.DisposeAsync().ConfigureAwait(true);
             }
 

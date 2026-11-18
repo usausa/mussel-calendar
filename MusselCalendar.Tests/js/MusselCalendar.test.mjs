@@ -27,7 +27,7 @@ test('home and end reach the first and the last day of the calendar', () => {
     assert.equal(key('2026-11-18', 'Home', 3), '2026-11-15');
 });
 
-test('moving keys are kept from the page even at the ends', () => {
+test('move keys are the arrows, home, end and the page keys', () => {
     assert.equal(isMoveKey('ArrowRight'), true);
     assert.equal(isMoveKey('PageDown'), true);
     assert.equal(isMoveKey('Home'), true);

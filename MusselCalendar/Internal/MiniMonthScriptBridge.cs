@@ -2,13 +2,13 @@ namespace MusselCalendar.Internal;
 
 using Microsoft.JSInterop;
 
-internal sealed class MiniMonthScriptBridge(MusselMiniMonth month)
+internal sealed class MiniMonthScriptBridge(MusselMiniMonth view)
 {
     [JSInvokable]
-    public Task OnFocusDate(string date) => RunAsync(() => month.OnFocusDate(date));
+    public Task OnFocusDateAsync(string date) => RunAsync(() => view.OnFocusDateAsync(date));
 
     [JSInvokable]
-    public Task OnSelectDate(string date) => RunAsync(() => month.OnSelectDate(date));
+    public Task OnSelectDateAsync(string date) => RunAsync(() => view.OnSelectDateAsync(date));
 
-    private Task RunAsync(Func<Task> operation) => month.IsDisposed ? Task.CompletedTask : month.ReportAsync(operation());
+    private Task RunAsync(Func<Task> operation) => view.IsDisposed ? Task.CompletedTask : view.ReportAsync(operation());
 }

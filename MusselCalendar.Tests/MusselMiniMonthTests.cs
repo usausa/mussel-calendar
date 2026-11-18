@@ -74,6 +74,26 @@ public sealed class MusselMiniMonthTests : BunitContext
     }
 
     [Fact]
+    public async Task AFailedFocusThatWaitedForTheScriptStillMarksTheMonthAttached()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "attachMiniMonth", Fail = "focus" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("attachMiniMonth", runtime.Module.Calls));
+
+        await cut.Find("td[data-date='2026-12-03']").ClickAsync(new MouseEventArgs());
+        cut.Render(static parameters => parameters.Add(static p => p.Date, new DateOnly(2026, 12, 3)));
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
+        Assert.Equal(["attachMiniMonth", "focus", "ready"], runtime.Module.Calls);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
+    }
+
+    [Fact]
     public void TheFirstMonthDoesNotGoBack()
     {
         DateOnly? shown = null;
@@ -180,14 +200,14 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.MonthChanged, months.Add)
             .Add(static p => p.DateChanged, day => selected = day));
 
-        await cut.InvokeAsync(() => cut.Instance.OnFocusDate("2026-11-20"));
+        await cut.InvokeAsync(() => cut.Instance.OnFocusDateAsync("2026-11-20"));
         Assert.Empty(months);
 
-        await cut.InvokeAsync(() => cut.Instance.OnFocusDate("2026-12-03"));
+        await cut.InvokeAsync(() => cut.Instance.OnFocusDateAsync("2026-12-03"));
         Assert.Equal([new DateOnly(2026, 12, 1)], months);
         Assert.Equal(["2026-12-03"], cut.FindAll("td[tabindex='0']").Select(static x => x.GetAttribute("data-date")));
 
-        await cut.InvokeAsync(() => cut.Instance.OnSelectDate("2026-12-04"));
+        await cut.InvokeAsync(() => cut.Instance.OnSelectDateAsync("2026-12-04"));
         Assert.Equal(new DateOnly(2026, 12, 4), selected);
     }
 
@@ -213,11 +233,80 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.DateChanged, static _ => throw new InvalidOperationException("app")));
 
-        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnSelectDate("2026-11-20")));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnSelectDateAsync("2026-11-20")));
         var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
         Assert.Same(Renderer.UnhandledException, ended);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
+    }
+
+    [Fact]
+    public async Task AFailureAfterTheMonthIsGoneDoesNotReachTheRenderer()
+    {
+        var pending = new TaskCompletionSource();
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(p => p.DateChanged, async _ =>
+            {
+                await pending.Task.ConfigureAwait(true);
+                throw new InvalidOperationException("late");
+            }));
+
+        var selected = cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnSelectDateAsync("2026-11-20"));
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+        pending.SetResult();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => selected);
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.NotSame(Renderer.UnhandledException, ended);
+    }
+
+    [Fact]
+    public async Task CallsFromTheScriptAfterTheMonthIsGoneDoNothing()
+    {
+        var selected = 0;
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(p => p.DateChanged, _ => selected++));
+        var bridge = new MiniMonthScriptBridge(cut.Instance);
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+
+        await cut.InvokeAsync(() => bridge.OnSelectDateAsync("2026-11-20"));
+
+        Assert.Equal(0, selected);
+    }
+
+    [Fact]
+    public async Task DisposingTellsTheScriptAndReleasesIt()
+    {
+        var runtime = new LateRuntime();
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters.Add(static p => p.Date, Thursday));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
+
+        await DisposeComponentsAsync();
+
+        Assert.Contains("dispose", runtime.Module.Calls);
+        Assert.True(runtime.Module.Released);
+    }
+
+    [Fact]
+    public async Task AFailedDisposeStillReleasesTheScript()
+    {
+        var instance = new LateModule { Fail = "dispose" };
+        var runtime = new LateRuntime { Module = { Returned = instance } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters.Add(static p => p.Date, Thursday));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", instance.Calls));
+
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+
+        Assert.Contains("dispose", instance.Calls);
+        Assert.True(instance.Released);
+        Assert.True(runtime.Module.Released);
     }
 
     [Fact]
@@ -227,7 +316,7 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.MonthChanged, static _ => throw new InvalidOperationException("app")));
 
-        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnFocusDate("2026-12-03")));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnFocusDateAsync("2026-12-03")));
         var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
         Assert.Same(Renderer.UnhandledException, ended);

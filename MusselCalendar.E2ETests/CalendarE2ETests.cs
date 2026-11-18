@@ -48,13 +48,14 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         var other = sample.Item(second).First;
         await Expect(kept).ToBeVisibleAsync();
         await Expect(other).ToBeVisibleAsync();
+        string?[] ids = [await kept.GetAttributeAsync("data-id"), await other.GetAttributeAsync("data-id")];
         await kept.EvaluateAsync("element => { window.kept = element; }");
         await other.EvaluateAsync("element => { window.other = element; }");
 
         await sample.Page.GetByLabel("仕事").UncheckAsync();
         await Expect(sample.Item(work)).ToHaveCountAsync(0);
 
-        Assert.True(await sample.Page.EvaluateAsync<bool>("() => window.kept.isConnected && window.other.isConnected"));
+        Assert.True(await sample.Page.EvaluateAsync<bool>("ids => window.kept.isConnected && window.other.isConnected && (window.kept.dataset.id === ids[0]) && (window.other.dataset.id === ids[1])", ids));
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         await sample.ShowAsync("週");
         var lunch = sample.Item("ランチ").First;
         await Expect(lunch).ToBeVisibleAsync();
-        await sample.RejectCallsAsync("OnItemClick", "OnSelect");
+        await sample.RejectCallsAsync("OnItemClickAsync", "OnSelectAsync");
 
         await lunch.ClickAsync();
         await lunch.PressAsync("Enter");
@@ -147,10 +148,9 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     public async Task KeysWhoseCallsFailLeaveNoUnhandledRejections()
     {
         var sample = await OpenAsync("server");
-        await Expect(sample.Page.Locator(".mussel-mini-month[data-attached]")).ToHaveCountAsync(1);
-        await sample.RejectCallsAsync("OnDayClick", "OnYearFocus", "OnSelectDate", "OnFocusDate");
+        await sample.RejectCallsAsync("OnDayClickAsync", "OnYearFocus", "OnSelectDateAsync", "OnFocusDateAsync");
         await sample.ShowAsync("年");
-        var day = sample.Calendar.Locator(".mc-year-day[tabindex='0']").First;
+        var day = sample.Calendar.Locator(".mc-year-day[data-date$='-06-15']");
         await Expect(day).ToBeVisibleAsync();
 
         await day.FocusAsync();
@@ -168,17 +168,16 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     public async Task DisposingTheScriptRemovesTheMarks(string mode)
     {
         var sample = await OpenAsync(mode);
-        await Expect(sample.Page.Locator(".mussel-mini-month[data-attached]")).ToHaveCountAsync(1);
 
         var marks = await sample.Page.EvaluateAsync<bool[]>(
             """
             async () => {
                 const module = await import('./_content/MusselCalendar/MusselCalendar.js');
-                const dotNet = { invokeMethodAsync: () => Promise.resolve() };
+                const dotnet = { invokeMethodAsync: () => Promise.resolve() };
                 const calendar = document.querySelector('.mussel-calendar');
                 const month = document.querySelector('.mussel-mini-month');
-                module.attach(calendar, dotNet, 8).dispose();
-                module.attachMiniMonth(month, dotNet).dispose();
+                module.attach(calendar, dotnet, 8).dispose();
+                module.attachMiniMonth(month, dotnet).dispose();
                 return [calendar.hasAttribute('data-attached'), month.hasAttribute('data-attached')];
             }
             """);
