@@ -111,7 +111,7 @@ The days a view shows.
 
 ## 🎨 Theme
 
-Link `_content/MusselCalendar/MusselCalendar.css` in the page head. Colors come from CSS variables; set them on the root element with `style` or a class of your own. `mussel-dark` on a container or the root element switches to the dark values (the same class as the other Mussel libraries).  
+Link `_content/MusselCalendar/MusselCalendar.css` in the page head. Colors come from CSS variables, which an app changes from any selector and in any file order. `mussel-dark` on a container or on the view itself switches to the dark values, the same class as the other Mussel libraries. A value an app sets is used in both themes, so include `.mussel-dark` in the selector to change a dark value.  
 
 These are shared with the other Mussel libraries. Their light defaults follow the look of each library, so set them on a container to give several libraries the same colors.  
 
@@ -121,7 +121,7 @@ These are shared with the other Mussel libraries. Their light defaults follow th
 | `--mussel-grid-line` | Grid lines, as the default of `--mussel-calendar-line` |
 | `--mussel-font-family` | Font family of both views |
 
-These are for the calendar only. `MusselMiniMonth` takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
+These are for the calendar only. Set them on `.mussel-calendar` or on a `class` given to the view; the view declares them on its own element, so a value on a container does not reach it. `MusselMiniMonth` takes `--mussel-calendar-today`, `--mussel-calendar-today-text`, `--mussel-calendar-hover`, `--mussel-calendar-range` and `--mussel-calendar-mini-day-size` on its root.  
 
 | Variable | Use |
 |---|---|

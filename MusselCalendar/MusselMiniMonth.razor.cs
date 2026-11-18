@@ -256,44 +256,13 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
         return true;
     }
 
-    private async Task ReleaseAsync()
+    private Task ReleaseAsync()
     {
         var attached = instance;
         var loaded = module;
         instance = null;
         module = null;
-        try
-        {
-            if (attached is not null)
-            {
-                try
-                {
-                    await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
-                }
-                catch (JSException)
-                {
-                }
-
-                await attached.DisposeAsync().ConfigureAwait(true);
-            }
-
-            if (loaded is not null)
-            {
-                await loaded.DisposeAsync().ConfigureAwait(true);
-            }
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-        catch (JSException)
-        {
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
+        return ScriptCalls.ReleaseAsync(attached, loaded);
     }
 
     private void OnTick(object? state) =>

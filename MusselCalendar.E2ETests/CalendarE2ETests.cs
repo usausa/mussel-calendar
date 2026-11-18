@@ -37,25 +37,23 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Theory]
-    [InlineData("週", ".mc-timegrid", "ランチ", "誕生日", "研修")]
-    [InlineData("スケジュール", ".mc-schedule", "予定 2", "旅行", "予定 1")]
-    public async Task ItemsKeepTheirElementsInTheOtherViews(string view, string container, string first, string second, string work)
+    [InlineData("週", ".mc-timegrid", "仕事", "誕生日", "研修")]
+    [InlineData("週", ".mc-timegrid", "個人", "夜間作業", "ジム")]
+    [InlineData("スケジュール", ".mc-schedule", "個人", "予定 3", "予定 2")]
+    public async Task ItemsKeepTheirElementsInTheOtherViews(string view, string container, string calendar, string name, string gone)
     {
         var sample = await OpenAsync("server");
         await sample.ShowAsync(view);
         await Expect(sample.Calendar.Locator(container)).ToBeVisibleAsync();
-        var kept = sample.Item(first).First;
-        var other = sample.Item(second).First;
+        var kept = sample.Item(name).First;
         await Expect(kept).ToBeVisibleAsync();
-        await Expect(other).ToBeVisibleAsync();
-        string?[] ids = [await kept.GetAttributeAsync("data-id"), await other.GetAttributeAsync("data-id")];
+        var id = await kept.GetAttributeAsync("data-id");
         await kept.EvaluateAsync("element => { window.kept = element; }");
-        await other.EvaluateAsync("element => { window.other = element; }");
 
-        await sample.Page.GetByLabel("仕事").UncheckAsync();
-        await Expect(sample.Item(work)).ToHaveCountAsync(0);
+        await sample.Page.GetByLabel(calendar).UncheckAsync();
+        await Expect(sample.Item(gone)).ToHaveCountAsync(0);
 
-        Assert.True(await sample.Page.EvaluateAsync<bool>("ids => window.kept.isConnected && window.other.isConnected && (window.kept.dataset.id === ids[0]) && (window.other.dataset.id === ids[1])", ids));
+        Assert.True(await sample.Page.EvaluateAsync<bool>("id => window.kept.isConnected && (window.kept.dataset.id === id)", id));
     }
 
     [Fact]
@@ -199,7 +197,7 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     [Fact]
     public async Task TheErrorPageAndUnknownAddressesAnswer()
     {
-        Assert.SkipWhen(string.IsNullOrEmpty(app.BaseAddress), "Neither Edge nor Chrome was found, so the E2E test is skipped.");
+        Assert.SkipWhen(String.IsNullOrEmpty(app.BaseAddress), "Neither Edge nor Chrome was found, so the E2E test is skipped.");
         var token = Xunit.TestContext.Current.CancellationToken;
 
         using var error = await Client.GetAsync(new Uri($"{app.BaseAddress}error"), token);

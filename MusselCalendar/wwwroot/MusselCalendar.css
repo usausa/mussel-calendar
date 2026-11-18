@@ -1,4 +1,4 @@
-.mussel-calendar {
+:where(.mussel-calendar) {
     --mussel-calendar-line: var(--mussel-grid-line, #dadce0);
     --mussel-calendar-text: var(--mussel-primary-text, #3c4043);
     --mussel-calendar-muted: var(--mussel-muted-text, #70757a);
@@ -17,6 +17,9 @@
     --mussel-calendar-lane-height: 22px;
     --mussel-calendar-schedule-date-width: 120px;
     --mussel-calendar-schedule-time-width: 120px;
+}
+
+.mussel-calendar {
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -585,12 +588,15 @@
     box-shadow: inset 0 0 0 2px var(--mussel-calendar-range-border, rgba(26, 115, 232, 0.6));
 }
 
-.mussel-mini-month {
+:where(.mussel-mini-month) {
     --mussel-calendar-today: #1a73e8;
     --mussel-calendar-today-text: #ffffff;
     --mussel-calendar-hover: rgba(60, 64, 67, 0.08);
     --mussel-calendar-range: rgba(26, 115, 232, 0.12);
     --mussel-calendar-mini-day-size: 26px;
+}
+
+.mussel-mini-month {
     display: grid;
     gap: 4px;
     color: var(--mussel-primary-text, #3c4043);
@@ -707,15 +713,14 @@
     color: var(--mussel-calendar-today-text);
 }
 
-.mussel-dark {
+:where(.mussel-dark) {
     --mussel-primary-text: #F0EFEC;
     --mussel-muted-text: #8E8C86;
     --mussel-grid-line: #2C2C2A;
 }
 
-:where(.mussel-dark) .mussel-calendar,
-.mussel-calendar:where(.mussel-dark) {
-    --mussel-calendar-line: #383835;
+:where(.mussel-dark) :where(.mussel-calendar),
+:where(.mussel-calendar.mussel-dark) {
     --mussel-calendar-background: #1F1F1D;
     --mussel-calendar-outside: #262624;
     --mussel-calendar-today: #8AB4F8;
@@ -726,8 +731,8 @@
     --mussel-calendar-range-border: rgba(138, 180, 248, 0.7);
 }
 
-:where(.mussel-dark) .mussel-mini-month,
-.mussel-mini-month:where(.mussel-dark) {
+:where(.mussel-dark) :where(.mussel-mini-month),
+:where(.mussel-mini-month.mussel-dark) {
     --mussel-calendar-today: #8AB4F8;
     --mussel-calendar-today-text: #1F1F1D;
     --mussel-calendar-hover: rgba(240, 239, 236, 0.08);

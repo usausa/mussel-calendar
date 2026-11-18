@@ -36,7 +36,7 @@
     </div>
     <div class="app-side">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNow">作成</MudButton>
-        <MusselMiniMonth Date="date" DateChanged="d => date = d" FirstDayOfWeek="firstDayOfWeek" Highlight="Range" PreviousText="前の月" NextText="次の月" />
+        <MusselMiniMonth @bind-Date="date" FirstDayOfWeek="firstDayOfWeek" Highlight="Range" PreviousText="前の月" NextText="次の月" />
         <div class="app-calendars">
             <span class="app-heading">マイカレンダー</span>
             @foreach (var calendar in calendars)

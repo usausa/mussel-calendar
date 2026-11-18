@@ -32,7 +32,7 @@ export const targetOf = (cell, e) => {
     }
     return e.key === 'Home' ? '0001-01-01' : e.key === 'End' ? '9999-12-31' : null;
 };
-export const isMoveKey = (key) => ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(key);
+export const isMoveKey = (key) => MOVE_KEYS.includes(key);
 const stepOf = (cell, e) => {
     const date = cell.dataset.date;
     switch (e.key) {
@@ -58,6 +58,7 @@ const stepOf = (cell, e) => {
 };
 const contains = (rect, x, y) => (x >= rect.left) && (x < rect.right) && (y >= rect.top) && (y < rect.bottom);
 const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+const MOVE_KEYS = [...ARROW_KEYS, 'Home', 'End', 'PageUp', 'PageDown'];
 const anchorOf = (rect) => [rect.left, rect.top, rect.width, rect.height];
 const preventDefault = (e) => e.preventDefault();
 const THEME_NAMES = ['--mussel-calendar-range', '--mussel-calendar-range-border', '--mussel-calendar-event-text', '--mussel-font-family'];

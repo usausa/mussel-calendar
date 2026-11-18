@@ -7,7 +7,7 @@ using Microsoft.JSInterop;
 
 using MusselCalendar.Internal;
 
-public sealed partial class MusselCalendarView
+public sealed partial class MusselCalendarView : IAsyncDisposable
 {
     private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
 
@@ -407,44 +407,13 @@ public sealed partial class MusselCalendarView
         }
     }
 
-    private async Task ReleaseAsync()
+    private Task ReleaseAsync()
     {
         var attached = instance;
         var loaded = module;
         instance = null;
         module = null;
-        try
-        {
-            if (attached is not null)
-            {
-                try
-                {
-                    await attached.InvokeVoidAsync("dispose").ConfigureAwait(true);
-                }
-                catch (JSException)
-                {
-                }
-
-                await attached.DisposeAsync().ConfigureAwait(true);
-            }
-
-            if (loaded is not null)
-            {
-                await loaded.DisposeAsync().ConfigureAwait(true);
-            }
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-        catch (JSException)
-        {
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
+        return ScriptCalls.ReleaseAsync(attached, loaded);
     }
 
     private void BuildMonth()
@@ -538,7 +507,7 @@ public sealed partial class MusselCalendarView
 
         foreach (var ch in value)
         {
-            if (!char.IsAsciiLetterOrDigit(ch) && (ch is not ('#' or '(' or ')' or ',' or '.' or '%' or ' ' or '-' or '/')))
+            if (!Char.IsAsciiLetterOrDigit(ch) && (ch is not ('#' or '(' or ')' or ',' or '.' or '%' or ' ' or '-' or '/')))
             {
                 return false;
             }

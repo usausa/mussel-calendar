@@ -74,7 +74,7 @@ public sealed class MusselMiniMonthTests : BunitContext
     }
 
     [Fact]
-    public async Task AFailedFocusThatWaitedForTheScriptStillMarksTheMonthAttached()
+    public async Task AFailedFocusBeforeTheScriptIsAttachedStillMarksTheMonthAttached()
     {
         var runtime = new LateRuntime { Module = { Hold = "attachMiniMonth", Fail = "focus" } };
         Services.AddSingleton<IJSRuntime>(runtime);
@@ -200,14 +200,14 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.MonthChanged, months.Add)
             .Add(static p => p.DateChanged, day => selected = day));
 
-        await cut.InvokeAsync(() => cut.Instance.OnFocusDateAsync("2026-11-20"));
+        await cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnFocusDateAsync("2026-11-20"));
         Assert.Empty(months);
 
-        await cut.InvokeAsync(() => cut.Instance.OnFocusDateAsync("2026-12-03"));
+        await cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnFocusDateAsync("2026-12-03"));
         Assert.Equal([new DateOnly(2026, 12, 1)], months);
         Assert.Equal(["2026-12-03"], cut.FindAll("td[tabindex='0']").Select(static x => x.GetAttribute("data-date")));
 
-        await cut.InvokeAsync(() => cut.Instance.OnSelectDateAsync("2026-12-04"));
+        await cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnSelectDateAsync("2026-12-04"));
         Assert.Equal(new DateOnly(2026, 12, 4), selected);
     }
 
@@ -238,6 +238,22 @@ public sealed class MusselMiniMonthTests : BunitContext
 
         Assert.Same(Renderer.UnhandledException, ended);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
+    }
+
+    [Fact]
+    public async Task CanceledHandlersAndLostConnectionsDoNotReachTheRenderer()
+    {
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.DateChanged, static _ => throw new OperationCanceledException())
+            .Add(static p => p.MonthChanged, static _ => throw new JSDisconnectedException("gone")));
+
+        var bridge = new MiniMonthScriptBridge(cut.Instance);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => cut.InvokeAsync(() => bridge.OnSelectDateAsync("2026-11-20")));
+        await Assert.ThrowsAsync<JSDisconnectedException>(() => cut.InvokeAsync(() => bridge.OnFocusDateAsync("2026-12-03")));
+        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
+
+        Assert.NotSame(Renderer.UnhandledException, ended);
     }
 
     [Fact]
@@ -306,6 +322,38 @@ public sealed class MusselMiniMonthTests : BunitContext
 
         Assert.Contains("dispose", instance.Calls);
         Assert.True(instance.Released);
+        Assert.True(runtime.Module.Released);
+    }
+
+    [Fact]
+    public async Task TheScriptThatArrivesAfterTheMonthIsGoneIsReleased()
+    {
+        var runtime = new LateRuntime();
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters.Add(static p => p.Date, Thursday));
+
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+
+        await cut.WaitForAssertionAsync(() => Assert.True(runtime.Module.Released));
+        Assert.DoesNotContain("attachMiniMonth", runtime.Module.Calls);
+    }
+
+    [Fact]
+    public async Task DisposingWhileTheScriptIsAttachingReleasesWhatAttachReturns()
+    {
+        var instance = new LateModule();
+        var runtime = new LateRuntime { Module = { Hold = "attachMiniMonth", Returned = instance } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters.Add(static p => p.Date, Thursday));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Equal(["attachMiniMonth"], runtime.Module.Calls));
+
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
+        await cut.WaitForAssertionAsync(() => Assert.True(instance.Released));
+        Assert.Equal(["dispose"], instance.Calls);
         Assert.True(runtime.Module.Released);
     }
 
