@@ -81,14 +81,14 @@ public sealed partial class AppFixture : IAsyncLifetime
         return page;
     }
 
-    public async Task<SamplePage> OpenBlankAsync(bool touch = false)
+    public async Task<SamplePage> OpenBlankAsync(bool touch = false, bool javaScriptEnabled = true)
     {
         if (browser is null)
         {
             Assert.Skip("Neither Edge nor Chrome was found, so the E2E test is skipped.");
         }
 
-        var context = await browser.NewContextAsync(new() { ViewportSize = new() { Width = 1280, Height = 900 }, HasTouch = touch }).ConfigureAwait(false);
+        var context = await browser.NewContextAsync(new() { JavaScriptEnabled = javaScriptEnabled, ViewportSize = new() { Width = 1280, Height = 900 }, HasTouch = touch }).ConfigureAwait(false);
         return new SamplePage(context, await context.NewPageAsync().ConfigureAwait(false));
     }
 

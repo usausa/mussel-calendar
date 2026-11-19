@@ -30,6 +30,18 @@ public sealed partial class ScriptBridgeTests
         AssertEntryPoints(script[mini..], typeof(MiniMonthScriptBridge));
     }
 
+    [Fact]
+    public void EveryDataNameTheScriptReadsIsWrittenByAView()
+    {
+        var script = File.ReadAllText(Path.Combine(TestPaths.Root, "MusselCalendar", "wwwroot", "MusselCalendar.js"));
+        var markup = String.Concat(Directory.GetFiles(Path.Combine(TestPaths.Root, "MusselCalendar"), "*.razor", SearchOption.AllDirectories).Select(File.ReadAllText));
+        var written = DataAttributes().Matches(markup).Select(static x => Dash().Replace(x.Groups["name"].Value, static y => y.Groups["letter"].Value.ToUpperInvariant())).ToHashSet(StringComparer.Ordinal);
+        var names = DataNames().Matches(script).Select(static x => x.Groups["name"].Value).Where(static x => x != "attached").Distinct().ToList();
+
+        Assert.NotEmpty(names);
+        Assert.All(names, name => Assert.Contains(name, written));
+    }
+
     private static void AssertEntryPoints(string script, Type bridge)
     {
         var names = Calls().Matches(script).Select(static x => x.Groups["name"].Value).Distinct().ToList();
@@ -44,4 +56,13 @@ public sealed partial class ScriptBridgeTests
 
     [GeneratedRegex(@"invokeMethodAsync\(\s*'(?<name>\w+)'")]
     private static partial Regex Calls();
+
+    [GeneratedRegex(@"dataset\.(?<name>[a-zA-Z]+)")]
+    private static partial Regex DataNames();
+
+    [GeneratedRegex(@"\bdata-(?<name>[a-z-]+)=")]
+    private static partial Regex DataAttributes();
+
+    [GeneratedRegex("-(?<letter>[a-z])")]
+    private static partial Regex Dash();
 }

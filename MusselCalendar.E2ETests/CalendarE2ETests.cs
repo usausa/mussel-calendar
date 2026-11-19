@@ -161,35 +161,69 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
 
     [Theory]
     [MemberData(nameof(Modes))]
-    public async Task DisposingTheScriptRemovesTheMarks(string mode)
+    public async Task TheRootsLoseTheirMarkWhenTheirScriptsAreDisposed(string mode)
     {
         var sample = await OpenAsync(mode);
-
-        var marks = await sample.Page.EvaluateAsync<bool[]>(
+        var count = await sample.Page.EvaluateAsync<int>(
             """
-            async () => {
-                const module = await import('./_content/MusselCalendar/MusselCalendar.js');
-                const dotnet = { invokeMethodAsync: () => Promise.resolve() };
-                const calendar = document.querySelector('.mussel-calendar');
-                const month = document.querySelector('.mussel-mini-month');
-                module.attach(calendar, dotnet, 8).dispose();
-                module.attachMiniMonth(month, dotnet).dispose();
-                return [calendar.hasAttribute('data-attached'), month.hasAttribute('data-attached')];
+            () => {
+                window.lostMarks = 0;
+                const roots = document.querySelectorAll('.mussel-calendar, .mussel-mini-month');
+                for (const root of roots) {
+                    new MutationObserver(() => {
+                        if (!root.hasAttribute('data-attached')) {
+                            window.lostMarks++;
+                        }
+                    }).observe(root, { attributes: true, attributeFilter: ['data-attached'] });
+                }
+                return roots.length;
             }
             """);
 
-        Assert.Equal([false, false], marks);
+        await sample.Page.Locator(".page-switch a[href='date']").ClickAsync();
+
+        Assert.Equal(2, count);
+        await sample.Page.WaitForFunctionAsync("count => window.lostMarks === count", count);
+    }
+
+    [Fact]
+    public async Task RenderModeSwitchKeepsThePage()
+    {
+        var sample = opened = await app.OpenAsync("date", "server");
+        var active = sample.Page.Locator(".mode-switch a.active");
+        await Expect(active).ToHaveTextAsync("Server");
+
+        await sample.Page.Locator(".mode-switch").GetByText("WebAssembly").ClickAsync();
+        await Expect(active).ToHaveTextAsync("WebAssembly");
+        await Expect(sample.Page.Locator(".page-switch a.active")).ToHaveTextAsync("日付の選択");
+        await sample.WaitForCalendarAsync();
+        Assert.EndsWith("/date", sample.Page.Url, StringComparison.Ordinal);
+
+        var day = sample.Page.Locator(".mussel-mini-month").First.Locator("td.mm-day:not(.mm-outside):not([aria-selected])").First;
+        var date = await day.GetAttributeAsync("data-date");
+        await day.ClickAsync();
+        await Expect(sample.Page.Locator($".mussel-mini-month td[data-date='{date}']").First).ToHaveAttributeAsync("aria-selected", "true");
+
+        await sample.Page.Locator(".page-switch").GetByText("カレンダー").ClickAsync();
+        await Expect(sample.Page.Locator(".mode-switch a").First).ToHaveAttributeAsync("href", new Regex("redirect=%2F$"));
+        await Expect(active).ToHaveTextAsync("WebAssembly");
+        await sample.Page.Locator(".mode-switch").GetByText("Server").ClickAsync();
+        await Expect(active).ToHaveTextAsync("Server");
+        Assert.Equal(app.BaseAddress, sample.Page.Url);
     }
 
     [Theory]
     [MemberData(nameof(Modes))]
-    public async Task TheRenderModeSwitchFollowsThePage(string mode)
+    public async Task PagesArePrerendered(string mode)
     {
-        var sample = await OpenAsync(mode);
+        var sample = opened = await app.OpenBlankAsync(javaScriptEnabled: false);
 
-        await sample.Page.Locator(".page-switch a[href='date']").ClickAsync();
-
-        await Expect(sample.Page.Locator(".mode-switch a").First).ToHaveAttributeAsync("href", new Regex("redirect=%2Fdate$"));
+        await sample.Page.GotoAsync($"{app.BaseAddress}render-mode/{mode}?redirect=%2F");
+        await Expect(sample.Page.Locator(".page-switch a.active")).ToHaveTextAsync("カレンダー");
+        await Expect(sample.Item("ランチ").First).ToBeVisibleAsync();
+        await Expect(sample.Page.Locator(".mussel-mini-month td[aria-current='date']").First).ToBeVisibleAsync();
+        await Expect(sample.Page.Locator("[data-attached]")).ToHaveCountAsync(0);
+        await Expect(sample.Page.Locator(".mode-switch a.active")).ToHaveTextAsync(mode == "wasm" ? "WebAssembly" : "Server");
     }
 
     [Fact]
@@ -216,13 +250,12 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         await Expect(sample.Page.Locator("h1")).ToHaveTextAsync("エラー");
     }
 
-    [Theory]
-    [InlineData("render-mode/server")]
-    public async Task RedirectsOutsideTheAppGoHome(string path)
+    [Fact]
+    public async Task RedirectsOutsideTheAppGoHome()
     {
         var sample = opened = await app.OpenBlankAsync();
 
-        var response = await sample.Page.GotoAsync($"{app.BaseAddress}{path}?redirect=%2F%5Cexample.com");
+        var response = await sample.Page.GotoAsync($"{app.BaseAddress}render-mode/server?redirect=%2F%5Cexample.com");
         Assert.Equal(200, response?.Status);
         Assert.Equal(app.BaseAddress, sample.Page.Url);
     }

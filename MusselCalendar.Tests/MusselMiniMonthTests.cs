@@ -8,14 +8,11 @@ using MusselCalendar.Internal;
 
 public sealed class MusselMiniMonthTests : BunitContext
 {
-    private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
-
     private static readonly DateOnly Thursday = new(2026, 11, 12);
 
     public MusselMiniMonthTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.SetupModule(ModulePath);
     }
 
     [Fact]
@@ -106,7 +103,7 @@ public sealed class MusselMiniMonthTests : BunitContext
         await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
         await cut.WaitForAssertionAsync(() => Assert.Contains("focus", runtime.Module.Calls));
 
-        await DisposeComponentsAsync();
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
         await cut.InvokeAsync(runtime.Module.Resume.SetResult);
 
         Assert.False(Renderer.UnhandledException.IsCompleted);

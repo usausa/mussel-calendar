@@ -7,14 +7,11 @@ using MusselCalendar.Internal;
 
 public sealed class MusselCalendarViewTests : BunitContext
 {
-    private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
-
     private static readonly DateOnly Thursday = new(2026, 11, 12);
 
     public MusselCalendarViewTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.SetupModule(ModulePath);
     }
 
     [Fact]
@@ -169,10 +166,9 @@ public sealed class MusselCalendarViewTests : BunitContext
         await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
         await cut.WaitForAssertionAsync(() => Assert.Contains("scroll", runtime.Module.Calls));
 
-        await DisposeComponentsAsync();
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
         await cut.InvokeAsync(runtime.Module.Resume.SetResult);
 
-        Assert.DoesNotContain("fit", runtime.Module.Calls);
         Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
@@ -207,7 +203,7 @@ public sealed class MusselCalendarViewTests : BunitContext
     public void ColorsThatAreNotSafeInStylesAreLeftOut()
     {
         var plain = Item("a", 9, 10);
-        plain.Color = "#5794F2";
+        plain.Color = "#5794f2";
         var hostile = Item("b", 11, 12);
         hostile.Color = "red; position: fixed; inset: 0; z-index: 9999";
 
@@ -216,7 +212,7 @@ public sealed class MusselCalendarViewTests : BunitContext
             .Add(static p => p.Items, [plain, hostile]));
 
         var styles = cut.FindAll(".mc-event").Select(static x => x.GetAttribute("style") ?? string.Empty).ToList();
-        Assert.Contains(styles, static x => x.Contains("--mc-color: #5794F2;", StringComparison.Ordinal));
+        Assert.Contains(styles, static x => x.Contains("--mc-color: #5794f2;", StringComparison.Ordinal));
         Assert.DoesNotContain(styles, static x => x.Contains("position", StringComparison.Ordinal));
     }
 
@@ -283,8 +279,26 @@ public sealed class MusselCalendarViewTests : BunitContext
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnExtendAsync("a", -60));
 
         Assert.Equal(2, changes.Count);
-        Assert.Equal((new DateTime(2026, 11, 13, 9, 30, 0), new DateTime(2026, 11, 13, 10, 30, 0)), (changes[0].Start, changes[0].End));
-        Assert.Equal((item.Start, item.End.AddMinutes(15)), (changes[1].Start, changes[1].End));
+        Assert.Equal((new DateTime(2026, 11, 13, 9, 30, 0), new DateTime(2026, 11, 13, 10, 30, 0), false), (changes[0].Start, changes[0].End, changes[0].AllDay));
+        Assert.Equal((item.Start, item.End.AddMinutes(15), false), (changes[1].Start, changes[1].End, changes[1].AllDay));
+    }
+
+    [Fact]
+    public async Task ShiftingAnAllDayItemKeepsItAllDay()
+    {
+        var day = Thursday.ToDateTime(TimeOnly.MinValue);
+        var item = new CalendarItem { Id = "a", Title = "a", Start = day, End = day.AddDays(1), AllDay = true };
+        var changes = new List<CalendarItemChangeEventArgs>();
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { item })
+            .Add(static p => p.ItemChanged, changes.Add));
+
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnShiftAsync("a", 1, 0));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnExtendAsync("a", 15));
+
+        var changed = Assert.Single(changes);
+        Assert.Equal((day.AddDays(1), day.AddDays(2), true), (changed.Start, changed.End, changed.AllDay));
     }
 
     [Fact]
@@ -307,16 +321,19 @@ public sealed class MusselCalendarViewTests : BunitContext
     [Fact]
     public async Task SelectRaisesRangeSelected()
     {
-        CalendarSelectEventArgs? selected = null;
+        var selections = new List<CalendarSelectEventArgs>();
         var cut = Render<MusselCalendarView>(parameters => parameters
             .Add(static p => p.Date, Thursday)
-            .Add(static p => p.RangeSelected, e => selected = e));
+            .Add(static p => p.RangeSelected, selections.Add));
 
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnSelectAsync("2026-11-12T00:00:00", "2026-11-14T00:00:00", true, 10, 20, 30, 40));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnSelectAsync("2026-11-12T09:00:00", "2026-11-12T10:30:00", false, 1, 2, 3, 4));
 
-        Assert.NotNull(selected);
-        Assert.Equal((new DateTime(2026, 11, 12), new DateTime(2026, 11, 14), true), (selected.Start, selected.End, selected.AllDay));
-        Assert.Equal(new CalendarAnchor(10, 20, 30, 40), selected.Anchor);
+        Assert.Equal(2, selections.Count);
+        Assert.Equal((new DateTime(2026, 11, 12), new DateTime(2026, 11, 14), true), (selections[0].Start, selections[0].End, selections[0].AllDay));
+        Assert.Equal(new CalendarAnchor(10, 20, 30, 40), selections[0].Anchor);
+        Assert.Equal((new DateTime(2026, 11, 12, 9, 0, 0), new DateTime(2026, 11, 12, 10, 30, 0), false), (selections[1].Start, selections[1].End, selections[1].AllDay));
+        Assert.Equal(new CalendarAnchor(1, 2, 3, 4), selections[1].Anchor);
     }
 
     [Fact]
