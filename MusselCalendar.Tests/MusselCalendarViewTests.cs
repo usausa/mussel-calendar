@@ -31,7 +31,7 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
-    public async Task AScrollAskedForWhileTheScriptAttachesRunsAfterIt()
+    public async Task AScrollAskedForWhileTheScriptIsAttachingRunsAfterIt()
     {
         var runtime = new LateRuntime { Module = { Hold = "attach" } };
         Services.AddSingleton<IJSRuntime>(runtime);
@@ -70,7 +70,7 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
-    public async Task AFitAskedForWhileTheScriptAttachesRunsAfterIt()
+    public async Task AFitAskedForWhileTheScriptIsAttachingRunsAfterIt()
     {
         var runtime = new LateRuntime { Module = { Hold = "attach" } };
         Services.AddSingleton<IJSRuntime>(runtime);
@@ -90,15 +90,18 @@ public sealed class MusselCalendarViewTests : BunitContext
     [Fact]
     public async Task DisposingTellsTheScriptAndReleasesIt()
     {
-        var runtime = new LateRuntime();
+        var instance = new LateModule();
+        var runtime = new LateRuntime { Module = { Returned = instance } };
         Services.AddSingleton<IJSRuntime>(runtime);
         var cut = Render<MusselCalendarView>(static parameters => parameters.Add(static p => p.Date, Thursday));
         await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
-        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", instance.Calls));
 
-        await DisposeComponentsAsync();
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
 
-        Assert.Contains("dispose", runtime.Module.Calls);
+        Assert.Equal(["attach"], runtime.Module.Calls);
+        Assert.Contains("dispose", instance.Calls);
+        Assert.True(instance.Released);
         Assert.True(runtime.Module.Released);
     }
 
@@ -147,6 +150,7 @@ public sealed class MusselCalendarViewTests : BunitContext
         await cut.InvokeAsync(runtime.Module.Resume.SetResult);
 
         await cut.WaitForAssertionAsync(() => Assert.True(instance.Released));
+        Assert.False(Renderer.UnhandledException.IsCompleted);
         Assert.Equal(["dispose"], instance.Calls);
         Assert.True(runtime.Module.Released);
     }
@@ -243,6 +247,8 @@ public sealed class MusselCalendarViewTests : BunitContext
         Assert.NotNull(changed);
         Assert.Same(item, changed.Item);
         Assert.Equal((new DateTime(2026, 11, 13, 12, 0, 0), new DateTime(2026, 11, 13, 13, 0, 0), false), (changed.Start, changed.End, changed.AllDay));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnMoveAsync("a", "2026-11-14T00:00:00", "2026-11-15T00:00:00", true));
+        Assert.Equal((new DateTime(2026, 11, 14), new DateTime(2026, 11, 15), true), (changed.Start, changed.End, changed.AllDay));
     }
 
     [Fact]
@@ -534,10 +540,11 @@ public sealed class MusselCalendarViewTests : BunitContext
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnMoveAsync("a", "2026-11-13T12:00:00", "2026-11-13T13:00:00", false));
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnShiftAsync("a", 1, 0));
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnExtendAsync("a", 15));
-        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnItemClickAsync("a", 0, 0, 0, 0));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnItemClickAsync("a", 10, 20, 30, 40));
 
         Assert.Empty(raised);
         Assert.Equal("a", opened?.Item.Id);
+        Assert.Equal(new CalendarAnchor(10, 20, 30, 40), opened?.Anchor);
         Assert.Equal("true", cut.Find(".mussel-calendar").GetAttribute("data-read-only"));
         Assert.Equal("true", cut.Find(".mc-event").GetAttribute("data-read-only"));
         Assert.Empty(cut.FindAll(".mc-resize"));
@@ -686,7 +693,7 @@ public sealed class MusselCalendarViewTests : BunitContext
         var cut = Render<MusselCalendarView>(parameters => parameters
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.Items, new[] { Item("a", 9, 10) })
-            .Add(p => p.ItemClicked, _ => clicked++));
+            .Add(static p => p.ItemClicked, _ => clicked++));
         var bridge = new CalendarScriptBridge(cut.Instance);
         await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
 
@@ -702,7 +709,7 @@ public sealed class MusselCalendarViewTests : BunitContext
         var cut = Render<MusselCalendarView>(parameters => parameters
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.Items, new[] { Item("a", 9, 10) })
-            .Add(p => p.ItemClicked, async _ =>
+            .Add(static p => p.ItemClicked, async _ =>
             {
                 await pending.Task.ConfigureAwait(true);
                 throw new InvalidOperationException("late");

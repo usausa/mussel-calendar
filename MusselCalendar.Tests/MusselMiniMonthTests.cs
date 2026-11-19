@@ -53,7 +53,7 @@ public sealed class MusselMiniMonthTests : BunitContext
     }
 
     [Fact]
-    public async Task AFocusAskedForWhileTheScriptAttachesRunsOnceAfterIt()
+    public async Task AFocusAskedForWhileTheScriptIsAttachingRunsOnceAfterIt()
     {
         var runtime = new LateRuntime { Module = { Hold = "attachMiniMonth" } };
         Services.AddSingleton<IJSRuntime>(runtime);
@@ -90,6 +90,25 @@ public sealed class MusselMiniMonthTests : BunitContext
 
         await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
         Assert.Equal(["attachMiniMonth", "focus", "ready"], runtime.Module.Calls);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
+    }
+
+    [Fact]
+    public async Task DisposingWhileACallThatWaitedRunsStopsTheRest()
+    {
+        var runtime = new LateRuntime { Module = { Hold = "focus" } };
+        Services.AddSingleton<IJSRuntime>(runtime);
+        var cut = Render<MusselMiniMonth>(static parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+        await cut.Find("td[data-date='2026-12-03']").ClickAsync(new MouseEventArgs());
+        cut.Render(static parameters => parameters.Add(static p => p.Date, new DateOnly(2026, 12, 3)));
+        await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("focus", runtime.Module.Calls));
+
+        await DisposeComponentsAsync();
+        await cut.InvokeAsync(runtime.Module.Resume.SetResult);
+
         Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
@@ -262,7 +281,7 @@ public sealed class MusselMiniMonthTests : BunitContext
         var pending = new TaskCompletionSource();
         var cut = Render<MusselMiniMonth>(parameters => parameters
             .Add(static p => p.Date, Thursday)
-            .Add(p => p.DateChanged, async _ =>
+            .Add(static p => p.DateChanged, async _ =>
             {
                 await pending.Task.ConfigureAwait(true);
                 throw new InvalidOperationException("late");
@@ -284,7 +303,7 @@ public sealed class MusselMiniMonthTests : BunitContext
         var selected = 0;
         var cut = Render<MusselMiniMonth>(parameters => parameters
             .Add(static p => p.Date, Thursday)
-            .Add(p => p.DateChanged, _ => selected++));
+            .Add(static p => p.DateChanged, _ => selected++));
         var bridge = new MiniMonthScriptBridge(cut.Instance);
         await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
 
@@ -296,15 +315,18 @@ public sealed class MusselMiniMonthTests : BunitContext
     [Fact]
     public async Task DisposingTellsTheScriptAndReleasesIt()
     {
-        var runtime = new LateRuntime();
+        var instance = new LateModule();
+        var runtime = new LateRuntime { Module = { Returned = instance } };
         Services.AddSingleton<IJSRuntime>(runtime);
         var cut = Render<MusselMiniMonth>(static parameters => parameters.Add(static p => p.Date, Thursday));
         await cut.InvokeAsync(() => runtime.Import.SetResult(runtime.Module));
-        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", runtime.Module.Calls));
+        await cut.WaitForAssertionAsync(() => Assert.Contains("ready", instance.Calls));
 
-        await DisposeComponentsAsync();
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
 
-        Assert.Contains("dispose", runtime.Module.Calls);
+        Assert.Equal(["attachMiniMonth"], runtime.Module.Calls);
+        Assert.Contains("dispose", instance.Calls);
+        Assert.True(instance.Released);
         Assert.True(runtime.Module.Released);
     }
 
@@ -353,6 +375,7 @@ public sealed class MusselMiniMonthTests : BunitContext
         await cut.InvokeAsync(runtime.Module.Resume.SetResult);
 
         await cut.WaitForAssertionAsync(() => Assert.True(instance.Released));
+        Assert.False(Renderer.UnhandledException.IsCompleted);
         Assert.Equal(["dispose"], instance.Calls);
         Assert.True(runtime.Module.Released);
     }

@@ -13,7 +13,6 @@
     --mussel-calendar-range: rgba(26, 115, 232, 0.16);
     --mussel-calendar-range-border: rgba(26, 115, 232, 0.6);
     --mussel-calendar-gutter: 56px;
-    --mussel-calendar-hour-height: 48px;
     --mussel-calendar-lane-height: 22px;
     --mussel-calendar-schedule-date-width: 120px;
     --mussel-calendar-schedule-time-width: 120px;
@@ -714,18 +713,18 @@
 }
 
 :where(.mussel-dark) {
-    --mussel-primary-text: #F0EFEC;
-    --mussel-muted-text: #8E8C86;
-    --mussel-grid-line: #2C2C2A;
+    --mussel-primary-text: #f0efec;
+    --mussel-muted-text: #8e8c86;
+    --mussel-grid-line: #2c2c2a;
 }
 
 :where(.mussel-dark) :where(.mussel-calendar),
 :where(.mussel-calendar.mussel-dark) {
-    --mussel-calendar-background: #1F1F1D;
+    --mussel-calendar-background: #1f1f1d;
     --mussel-calendar-outside: #262624;
-    --mussel-calendar-today: #8AB4F8;
-    --mussel-calendar-today-text: #1F1F1D;
-    --mussel-calendar-now: #F28B82;
+    --mussel-calendar-today: #8ab4f8;
+    --mussel-calendar-today-text: #1f1f1d;
+    --mussel-calendar-now: #f28b82;
     --mussel-calendar-hover: rgba(240, 239, 236, 0.08);
     --mussel-calendar-range: rgba(138, 180, 248, 0.2);
     --mussel-calendar-range-border: rgba(138, 180, 248, 0.7);
@@ -733,8 +732,8 @@
 
 :where(.mussel-dark) :where(.mussel-mini-month),
 :where(.mussel-mini-month.mussel-dark) {
-    --mussel-calendar-today: #8AB4F8;
-    --mussel-calendar-today-text: #1F1F1D;
+    --mussel-calendar-today: #8ab4f8;
+    --mussel-calendar-today-text: #1f1f1d;
     --mussel-calendar-hover: rgba(240, 239, 236, 0.08);
     --mussel-calendar-range: rgba(138, 180, 248, 0.16);
 }

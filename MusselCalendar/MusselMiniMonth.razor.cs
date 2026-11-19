@@ -9,8 +9,6 @@ using MusselCalendar.Internal;
 
 public sealed partial class MusselMiniMonth : IAsyncDisposable
 {
-    private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
-
     private const string DateFormat = "yyyy-MM-dd";
 
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
@@ -214,7 +212,7 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     {
         try
         {
-            module = await Runtime.InvokeAsync<IJSObjectReference>("import", ModulePath).ConfigureAwait(true);
+            module = await Runtime.InvokeAsync<IJSObjectReference>("import", MusselCalendarView.ModulePath).ConfigureAwait(true);
             if (IsDisposed)
             {
                 await ReleaseAsync().ConfigureAwait(true);

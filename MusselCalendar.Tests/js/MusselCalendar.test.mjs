@@ -28,9 +28,9 @@ test('home and end reach the first and the last day of the calendar', () => {
 });
 
 test('move keys are the arrows, home, end and the page keys', () => {
-    assert.equal(isMoveKey('ArrowRight'), true);
-    assert.equal(isMoveKey('PageDown'), true);
-    assert.equal(isMoveKey('Home'), true);
+    for (const name of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']) {
+        assert.equal(isMoveKey(name), true, name);
+    }
     assert.equal(isMoveKey('a'), false);
     assert.equal(isMoveKey('Enter'), false);
 });

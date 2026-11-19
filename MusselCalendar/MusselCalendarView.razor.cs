@@ -9,7 +9,7 @@ using MusselCalendar.Internal;
 
 public sealed partial class MusselCalendarView : IAsyncDisposable
 {
-    private const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
+    internal const string ModulePath = "./_content/MusselCalendar/MusselCalendar.js";
 
     private const string DateFormat = "yyyy-MM-dd";
 
@@ -496,7 +496,7 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
 
     private string? KeyOf(CalendarItem item) => repeatedIds.Contains(item.Id) ? null : item.Id;
 
-    private static string ColorStyle(CalendarItem item) => (item.Color is { } color) && IsSafeColor(color) ? $"--mc-color: {color};" : String.Empty;
+    private static string ColorStyle(CalendarItem item) => (item.Color is { } color) && IsSafeColor(color) ? $"--mc-color: {color};" : string.Empty;
 
     private static bool IsSafeColor(string value)
     {

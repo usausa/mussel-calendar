@@ -21,7 +21,7 @@ public sealed partial class ScriptBridgeTests
     }
 
     [Fact]
-    public void EveryCallFromTheScriptHasAnEntryPointOnItsOwnBridge()
+    public void EveryCallFromTheScriptHasAnEntryPoint()
     {
         var script = File.ReadAllText(Path.Combine(TestPaths.Root, "MusselCalendar", "wwwroot", "MusselCalendar.js"));
         var mini = script.IndexOf("class MiniMonth", StringComparison.Ordinal);

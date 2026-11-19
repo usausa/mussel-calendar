@@ -75,16 +75,21 @@ public sealed partial class AppFixture : IAsyncLifetime
 
     public async Task<SamplePage> OpenAsync(string path, string mode, bool touch = false)
     {
+        var page = await OpenBlankAsync(touch).ConfigureAwait(false);
+        await page.Page.GotoAsync($"{BaseAddress}render-mode/{mode}?redirect={Uri.EscapeDataString($"/{path}")}").ConfigureAwait(false);
+        await page.WaitForCalendarAsync().ConfigureAwait(false);
+        return page;
+    }
+
+    public async Task<SamplePage> OpenBlankAsync(bool touch = false)
+    {
         if (browser is null)
         {
             Assert.Skip("Neither Edge nor Chrome was found, so the E2E test is skipped.");
         }
 
         var context = await browser.NewContextAsync(new() { ViewportSize = new() { Width = 1280, Height = 900 }, HasTouch = touch }).ConfigureAwait(false);
-        var page = new SamplePage(context, await context.NewPageAsync().ConfigureAwait(false));
-        await page.Page.GotoAsync($"{BaseAddress}render-mode/{mode}?redirect={Uri.EscapeDataString($"/{path}")}").ConfigureAwait(false);
-        await page.WaitForCalendarAsync().ConfigureAwait(false);
-        return page;
+        return new SamplePage(context, await context.NewPageAsync().ConfigureAwait(false));
     }
 
     private static string FindSolutionDirectory()
