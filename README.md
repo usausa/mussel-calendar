@@ -70,7 +70,7 @@ The `Example` project shows a calendar page with popups and the dark theme on Se
 | Part | Detail |
 |---|---|
 | Theme | CSS variables shared with the Mussel family (`--mussel-primary-text`, `--mussel-grid-line` and more), `--mussel-calendar-*` for the calendar, and the dark `mussel-dark` |
-| Items | `Color` of each item; timed items of one day are a dot and a time in the month view |
+| Items | `Color` of each item, with white or dark text by its lightness; timed items of one day are a dot and a time in the month view |
 | Days | `DayMark` gives each day a name for the tooltip, a shade for a day off and a color for its date |
 | Overlaps | Side by side (`Columns`) or stacked with an offset (`Stack`) |
 | Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them; `--mussel-calendar-schedule-date-width` and `--mussel-calendar-schedule-time-width` for the schedule; `--mussel-calendar-mini-day-size` for the mini month |

@@ -61,7 +61,7 @@ const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
 const MOVE_KEYS = [...ARROW_KEYS, 'Home', 'End', 'PageUp', 'PageDown'];
 const anchorOf = (rect) => [rect.left, rect.top, rect.width, rect.height];
 const preventDefault = (e) => e.preventDefault();
-const THEME_NAMES = ['--mussel-calendar-range', '--mussel-calendar-range-border', '--mussel-calendar-event-text', '--mussel-font-family'];
+const THEME_NAMES = ['--mussel-calendar-range', '--mussel-calendar-range-border', '--mussel-font-family'];
 const applyTheme = (element, theme) => {
     for (const [name, value] of theme) {
         element.style.setProperty(name, value);
@@ -587,7 +587,9 @@ class Calendar {
         const element = this.previews[index];
         element.style.display = 'block';
         element.classList.toggle('mc-preview-range', !item);
-        element.style.backgroundColor = item ? getComputedStyle(item).backgroundColor : '';
+        const style = item ? getComputedStyle(item) : null;
+        element.style.backgroundColor = style?.backgroundColor ?? '';
+        element.style.color = style?.color ?? '';
         element.textContent = item ? (item.querySelector('.mc-event-title, .mc-bar-title')?.textContent ?? '') : '';
         return element;
     }

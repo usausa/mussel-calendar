@@ -28,7 +28,7 @@
                                     <span class="mc-dot"></span>
                                     <span class="mc-bar-time">@TimeText(bar.Item.Start)</span>
                                 }
-                                <span class="mc-bar-title">@bar.Item.Title</span>
+                                <span class="mc-bar-title" title="@bar.Item.Title">@bar.Item.Title</span>
                             </div>
                         }
                         @for (var i = 0; i < 7; i++)
@@ -157,7 +157,7 @@
                 @foreach (var bar in allDayBars)
                 {
                     <div class="@BarClass(bar)" @key="KeyOf(bar.Item)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
-                        <span class="mc-bar-title">@bar.Item.Title</span>
+                        <span class="mc-bar-title" title="@bar.Item.Title">@bar.Item.Title</span>
                     </div>
                 }
             </div>
@@ -186,7 +186,7 @@
                                 }
 
                                 <div class="@EventClass(segment)" @key="KeyOf(segment.Item)" data-id="@segment.Item.Id" data-start="@IsoDateTime(segment.Item.Start)" data-end="@IsoDateTime(segment.Item.End)" data-read-only="@ReadOnlyText(segment.Item)" tabindex="0" role="button" aria-label="@ItemLabel(segment.Item)" style="@EventStyle(segment)">
-                                    <span class="mc-event-title">@segment.Item.Title</span>
+                                    <span class="mc-event-title" title="@segment.Item.Title">@segment.Item.Title</span>
                                     <span class="mc-event-time">@TimeText(segment.Item.Start) – @TimeText(segment.Item.End)</span>
                                     @if (segment.IsEnd && !segment.Item.ReadOnly && !ReadOnly)
                                     {

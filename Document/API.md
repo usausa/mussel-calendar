@@ -143,7 +143,8 @@ These are for the calendar only. Set them on `.mussel-calendar` or on a `class` 
 | `--mussel-calendar-off` | Days off of `DayMark` |
 | `--mussel-calendar-today`, `--mussel-calendar-today-text` | The date of today, the focus ring and the marks of the year view |
 | `--mussel-calendar-now` | The current time line |
-| `--mussel-calendar-event`, `--mussel-calendar-event-text` | Items without `Color` |
+| `--mussel-calendar-event` | Items without `Color` |
+| `--mussel-calendar-event-text` | The text of items; unset, white or dark gray by the lightness of the color of each item |
 | `--mussel-calendar-hover` | Dates, chips, hidden counts, schedule items and days of the year view under the pointer |
 | `--mussel-calendar-range`, `--mussel-calendar-range-border` | The range while selecting |
 | `--mussel-calendar-gutter` | The width of the hour labels; twice with `SecondaryOffset` |

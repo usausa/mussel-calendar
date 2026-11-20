@@ -274,6 +274,28 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
+    public void TitlesOfItemsShowAsTooltips()
+    {
+        CalendarItem[] items =
+        [
+            Item("timed", 9, 10),
+            new() { Id = "allDay", Title = "allDay", Start = Thursday.ToDateTime(TimeOnly.MinValue), End = Thursday.AddDays(1).ToDateTime(TimeOnly.MinValue), AllDay = true }
+        ];
+
+        var week = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items));
+        var month = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, CalendarViewKind.Month)
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items));
+
+        Assert.Equal(["timed"], week.FindAll(".mc-event-title").Select(static x => x.GetAttribute("title")));
+        Assert.Equal(["allDay"], week.FindAll(".mc-bar-title").Select(static x => x.GetAttribute("title")));
+        Assert.Equal(["allDay", "timed"], month.FindAll(".mc-bar-title").Select(static x => x.GetAttribute("title")).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public void ShortItemUsesOneLine()
     {
         CalendarItem[] items = [Item("a", 9, 9.25)];

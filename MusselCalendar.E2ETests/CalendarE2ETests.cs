@@ -218,6 +218,57 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Fact]
+    public async Task ItemsOnLightColorsHaveDarkText()
+    {
+        var sample = await OpenAsync("server");
+
+        var colors = await sample.Page.EvaluateAsync<string[]>(
+            """
+            () => {
+                const host = document.createElement('div');
+                host.innerHTML = '<div class="mussel-calendar"><div class="mc-event" style="--mc-color: #f6bf26"></div><div class="mc-event"></div><div class="mc-bar" style="--mc-color: #fff59d"></div></div>'
+                    + '<div class="mussel-calendar" style="--mussel-calendar-event-text: #123456"><div class="mc-event" style="--mc-color: #f6bf26"></div></div>'
+                    + '<span style="color: oklch(0.38 0 0)"></span><span style="color: oklch(1 0 0)"></span>';
+                document.body.appendChild(host);
+                return [...host.querySelectorAll('.mc-event, .mc-bar, span')].map((x) => getComputedStyle(x).color);
+            }
+            """);
+
+        Assert.Equal([colors[4], colors[5], colors[4], "rgb(18, 52, 86)"], colors[..4]);
+    }
+
+    [Fact]
+    public async Task TheDragPreviewHasTheTextColorOfTheItem()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        await sample.ShowAsync("週");
+        var lunch = sample.Calendar.Locator(".mc-event", new() { HasText = "ランチ" }).First;
+        await Expect(lunch).ToBeVisibleAsync();
+        await lunch.EvaluateAsync("element => { element.scrollIntoView({ block: 'center' }); element.style.setProperty('--mc-color', '#f6bf26'); }");
+        var box = await lunch.BoundingBoxAsync() ?? throw new InvalidOperationException("The item is not shown.");
+        var (x, y) = (box.X + (box.Width / 2), box.Y + (box.Height / 2));
+
+        await page.Mouse.MoveAsync(x, y);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(x, y + 30, new() { Steps = 5 });
+        await Expect(page.Locator(".mc-preview").First).ToBeVisibleAsync();
+        var colors = await lunch.EvaluateAsync<string[]>(
+            """
+            element => {
+                const dark = document.createElement('span');
+                dark.style.color = 'oklch(0.38 0 0)';
+                document.body.appendChild(dark);
+                return [getComputedStyle(document.querySelector('.mc-preview')).color, getComputedStyle(element).color, getComputedStyle(dark).color];
+            }
+            """);
+        await page.Keyboard.PressAsync("Escape");
+        await page.Mouse.UpAsync();
+
+        Assert.Equal([colors[2], colors[2]], colors[..2]);
+    }
+
+    [Fact]
     public async Task CallsThatFailLeaveNoUnhandledRejections()
     {
         var sample = await OpenAsync("server");
