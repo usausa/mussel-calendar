@@ -200,6 +200,24 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Fact]
+    public async Task DaysOffAreShadedAndAHolidayHasItsColor()
+    {
+        var sample = await OpenAsync("server");
+        await sample.ShowAsync("週");
+        await sample.Page.GetByRole(AriaRole.Button, new() { Name = "次へ" }).ClickAsync();
+        var holiday = sample.Item("祝日(読み取り専用)").First;
+        await Expect(holiday).ToBeVisibleAsync();
+        var column = sample.Calendar.Locator($".mc-column[data-date='{await holiday.GetAttributeAsync("data-first")}']");
+        var columns = sample.Calendar.Locator(".mc-column");
+
+        await Expect(sample.Calendar.Locator(".mc-head .mc-date[title='祝日']")).ToHaveCSSAsync("color", "rgb(217, 48, 37)");
+        await Expect(column).ToHaveCSSAsync("background-color", "rgb(248, 249, 250)");
+        await Expect(column).ToHaveCSSAsync("background-image", new Regex("linear-gradient"));
+        await Expect(columns.First).ToHaveCSSAsync("background-color", "rgb(248, 249, 250)");
+        await Expect(columns.Nth(2)).ToHaveCSSAsync("background-color", "rgba(0, 0, 0, 0)");
+    }
+
+    [Fact]
     public async Task CallsThatFailLeaveNoUnhandledRejections()
     {
         var sample = await OpenAsync("server");

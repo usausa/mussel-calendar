@@ -4,6 +4,7 @@
     --mussel-calendar-muted: var(--mussel-muted-text, #70757a);
     --mussel-calendar-background: #ffffff;
     --mussel-calendar-outside: #f8f9fa;
+    --mussel-calendar-off: #f8f9fa;
     --mussel-calendar-today: #1a73e8;
     --mussel-calendar-today-text: #ffffff;
     --mussel-calendar-now: #ea4335;
@@ -128,6 +129,10 @@
     border-left: 1px solid var(--mussel-calendar-line);
 }
 
+.mussel-calendar .mc-allday-cell.mc-off {
+    background-color: var(--mussel-calendar-off);
+}
+
 .mussel-calendar .mc-bar {
     z-index: 1;
     overflow: hidden;
@@ -232,6 +237,12 @@
 .mussel-calendar .mc-column {
     position: relative;
     border-left: 1px solid var(--mussel-calendar-line);
+}
+
+.mussel-calendar .mc-column.mc-off {
+    background-color: var(--mussel-calendar-off);
+    background-image: linear-gradient(to bottom, var(--mussel-calendar-line) 1px, transparent 1px);
+    background-size: 100% var(--mussel-calendar-hour-height);
 }
 
 .mussel-calendar .mc-event {
@@ -369,6 +380,10 @@
     min-width: 24px;
     height: 24px;
     font-size: 12px;
+}
+
+.mussel-calendar .mc-month-cell.mc-off {
+    background-color: var(--mussel-calendar-off);
 }
 
 .mussel-calendar .mc-month-cell.mc-outside {
@@ -722,6 +737,7 @@
 :where(.mussel-calendar.mussel-dark) {
     --mussel-calendar-background: #1f1f1d;
     --mussel-calendar-outside: #262624;
+    --mussel-calendar-off: #262624;
     --mussel-calendar-today: #8ab4f8;
     --mussel-calendar-today-text: #1f1f1d;
     --mussel-calendar-now: #f28b82;

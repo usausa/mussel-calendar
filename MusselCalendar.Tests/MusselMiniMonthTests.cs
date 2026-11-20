@@ -228,6 +228,31 @@ public sealed class MusselMiniMonthTests : BunitContext
     }
 
     [Fact]
+    public void MarksColorDaysButNotTodayTheSelectedDateOrOtherMonths()
+    {
+        var marks = new Dictionary<DateOnly, CalendarDayMark>
+        {
+            [new DateOnly(2026, 11, 10)] = new() { Label = "Today", Off = true, Color = "#d93025" },
+            [new DateOnly(2026, 11, 11)] = new() { Label = "Holiday", Off = true, Color = "#d93025" },
+            [Thursday] = new() { Label = "Selected", Color = "#d93025" },
+            [new DateOnly(2026, 11, 13)] = new() { Color = "red; position: fixed" },
+            [new DateOnly(2026, 12, 5)] = new() { Label = "Outside", Color = "#d93025" }
+        };
+        var cut = Render<MusselMiniMonth>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.DayMark, marks.GetValueOrDefault)
+            .Add(static p => p.TimeProvider, new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero) })
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
+
+        Assert.Equal(("Holiday", "color: #d93025"), Day(cut, "2026-11-11"));
+        Assert.Equal(("Today", null), Day(cut, "2026-11-10"));
+        Assert.Equal(("Selected", null), Day(cut, "2026-11-12"));
+        Assert.Equal((null, null), Day(cut, "2026-11-13"));
+        Assert.Equal(("Outside", null), Day(cut, "2026-12-05"));
+        Assert.Empty(cut.FindAll(".mc-off, .mm-off"));
+    }
+
+    [Fact]
     public void TodayMovesAtMidnight()
     {
         var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 30, TimeSpan.Zero) };
@@ -410,5 +435,11 @@ public sealed class MusselMiniMonthTests : BunitContext
             .AddUnmatched("class", "picker"));
 
         Assert.Equal("mussel-mini-month picker", cut.Find("div").GetAttribute("class"));
+    }
+
+    private static (string? Title, string? Style) Day(IRenderedComponent<MusselMiniMonth> cut, string date)
+    {
+        var cell = cut.Find($"td[data-date='{date}']");
+        return (cell.GetAttribute("title"), cell.QuerySelector("span")?.GetAttribute("style"));
     }
 }

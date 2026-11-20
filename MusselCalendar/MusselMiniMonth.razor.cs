@@ -63,6 +63,9 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     public CalendarRange? Highlight { get; set; }
 
     [Parameter]
+    public Func<DateOnly, CalendarDayMark?>? DayMark { get; set; }
+
+    [Parameter]
     public string PreviousText { get; set; } = "Previous month";
 
     [Parameter]
@@ -323,6 +326,8 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
     private string? SelectedText(DateOnly day) => day == Date ? "true" : null;
 
     private string? CurrentText(DateOnly day) => day == today ? "date" : null;
+
+    private string? DateStyle(DateOnly day, CalendarDayMark? mark) => (day == today) || (day == Date) || !InMonth(day) ? null : CalendarColor.DateStyle(mark);
 
     private string DayClass(DateOnly day)
     {

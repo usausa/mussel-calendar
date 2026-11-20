@@ -11,11 +11,17 @@ public sealed partial class CalendarPage
 
     private const int DayCount = 4;
 
+    private static readonly CalendarDayMark Holiday = new() { Label = "祝日", Off = true, Color = "#d93025" };
+
+    private static readonly CalendarDayMark DayOff = new() { Off = true };
+
     private readonly IReadOnlyList<SampleCalendar> calendars = SampleData.CreateCalendars();
 
     private readonly List<CalendarItem> items = [];
 
     private readonly Dictionary<string, SampleCalendar> owners = new(StringComparer.Ordinal);
+
+    private readonly HashSet<DateOnly> holidays = [];
 
     private CalendarViewKind view = CalendarViewKind.Month;
 
@@ -42,6 +48,8 @@ public sealed partial class CalendarPage
     private CalendarRange Range => CalendarRange.Of(view, date, firstDayOfWeek, DayCount);
 
     private List<CalendarItem> VisibleItems => [.. items.Where(x => owners[x.Id].Visible)];
+
+    private SampleCalendar HolidayCalendar => calendars[2];
 
     private TimeSpan LocalOffset => TimeZoneInfo.Local.GetUtcOffset(Range.StartTime);
 
@@ -102,9 +110,23 @@ public sealed partial class CalendarPage
         {
             items.Add(item);
             owners[item.Id] = calendar;
+            if (ReferenceEquals(calendar, HolidayCalendar))
+            {
+                holidays.Add(DateOnly.FromDateTime(item.Start));
+            }
         }
 
         draftCalendar = calendars[0];
+    }
+
+    private CalendarDayMark? MarkOf(DateOnly day)
+    {
+        if (HolidayCalendar.Visible && holidays.Contains(day))
+        {
+            return Holiday;
+        }
+
+        return day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? DayOff : null;
     }
 
     private void GoToday() => date = DateOnly.FromDateTime(DateTime.Today);

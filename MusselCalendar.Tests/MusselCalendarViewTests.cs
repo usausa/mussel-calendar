@@ -9,6 +9,14 @@ public sealed class MusselCalendarViewTests : BunitContext
 {
     private static readonly DateOnly Thursday = new(2026, 11, 12);
 
+    private static readonly Dictionary<DateOnly, CalendarDayMark> Marks = new()
+    {
+        [new DateOnly(2026, 11, 10)] = new() { Label = "Today", Off = true, Color = "#d93025" },
+        [new DateOnly(2026, 11, 11)] = new() { Label = "Holiday", Off = true, Color = "#d93025" },
+        [new DateOnly(2026, 11, 12)] = new() { Color = "red; position: fixed" },
+        [new DateOnly(2026, 12, 5)] = new() { Label = "Outside", Off = true, Color = "#d93025" }
+    };
+
     public MusselCalendarViewTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -214,6 +222,55 @@ public sealed class MusselCalendarViewTests : BunitContext
         var styles = cut.FindAll(".mc-event").Select(static x => x.GetAttribute("style") ?? string.Empty).ToList();
         Assert.Contains(styles, static x => x.Contains("--mc-color: #5794f2;", StringComparison.Ordinal));
         Assert.DoesNotContain(styles, static x => x.Contains("position", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MarksShadeDaysOffAndColorDatesButNotTodayOrOtherMonths()
+    {
+        var cut = RenderWithMarks(CalendarViewKind.Month, Thursday);
+
+        Assert.Equal((true, "Holiday", "color: #d93025"), MonthDay(cut, "2026-11-11"));
+        Assert.Equal((true, "Today", null), MonthDay(cut, "2026-11-10"));
+        Assert.Equal((false, "Outside", null), MonthDay(cut, "2026-12-05"));
+        Assert.Equal((false, null, null), MonthDay(cut, "2026-11-12"));
+        Assert.Equal((false, null, null), MonthDay(cut, "2026-11-13"));
+    }
+
+    [Fact]
+    public void DaysOffShadeTheirColumnsAndAllDayCells()
+    {
+        var cut = RenderWithMarks(CalendarViewKind.Week, Thursday);
+
+        Assert.Equal(["2026-11-10", "2026-11-11"], cut.FindAll(".mc-column.mc-off").Select(static x => x.GetAttribute("data-date")));
+        Assert.Equal(["2026-11-10", "2026-11-11"], cut.FindAll(".mc-allday-cell.mc-off").Select(static x => x.GetAttribute("data-date")));
+        Assert.Empty(cut.FindAll(".mc-day-head.mc-off"));
+        var dates = cut.FindAll(".mc-head .mc-date");
+        Assert.Equal(("Today", null), (dates[2].GetAttribute("title"), dates[2].GetAttribute("style")));
+        Assert.Equal(("Holiday", "color: #d93025"), (dates[3].GetAttribute("title"), dates[3].GetAttribute("style")));
+        Assert.Equal((null, null), (dates[4].GetAttribute("title"), dates[4].GetAttribute("style")));
+    }
+
+    [Fact]
+    public void MarksNameAndColorTheDatesOfTheScheduleAndTheYear()
+    {
+        CalendarItem[] items =
+        [
+            new() { Id = "a", Title = "a", Start = new DateOnly(2026, 11, 10).ToDateTime(new TimeOnly(9, 0)), End = new DateOnly(2026, 11, 10).ToDateTime(new TimeOnly(10, 0)) },
+            new() { Id = "b", Title = "b", Start = new DateOnly(2026, 11, 11).ToDateTime(new TimeOnly(9, 0)), End = new DateOnly(2026, 11, 11).ToDateTime(new TimeOnly(10, 0)) }
+        ];
+
+        var schedule = RenderWithMarks(CalendarViewKind.Schedule, new DateOnly(2026, 11, 10), items);
+        var year = RenderWithMarks(CalendarViewKind.Year, Thursday);
+
+        var dates = schedule.FindAll(".mc-schedule-date .mc-date");
+        Assert.Equal(("Today", null), (dates[0].GetAttribute("title"), dates[0].GetAttribute("style")));
+        Assert.Equal(("Holiday", "color: #d93025"), (dates[1].GetAttribute("title"), dates[1].GetAttribute("style")));
+        Assert.Empty(schedule.FindAll(".mc-off"));
+        var today = year.Find("td[data-date='2026-11-10']");
+        var holiday = year.Find("td[data-date='2026-11-11']");
+        Assert.Equal(("Today", null), (today.GetAttribute("title"), today.QuerySelector("span")?.GetAttribute("style")));
+        Assert.Equal(("Holiday", "color: #d93025"), (holiday.GetAttribute("title"), holiday.QuerySelector("span")?.GetAttribute("style")));
+        Assert.Empty(year.FindAll(".mc-off"));
     }
 
     [Fact]
@@ -920,4 +977,20 @@ public sealed class MusselCalendarViewTests : BunitContext
         var start = Thursday.ToDateTime(TimeOnly.MinValue);
         return new CalendarItem { Id = id, Title = id, Start = start.AddHours(startHour), End = start.AddHours(endHour) };
     }
+
+    private static (bool Off, string? Title, string? Style) MonthDay(IRenderedComponent<MusselCalendarView> cut, string date)
+    {
+        var cell = cut.Find($".mc-month-cell[data-date='{date}']");
+        var button = cell.QuerySelector(".mc-date");
+        return (cell.ClassList.Contains("mc-off"), button?.GetAttribute("title"), button?.GetAttribute("style"));
+    }
+
+    private IRenderedComponent<MusselCalendarView> RenderWithMarks(CalendarViewKind view, DateOnly date, IReadOnlyList<CalendarItem>? items = null) =>
+        Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.View, view)
+            .Add(static p => p.Date, date)
+            .Add(static p => p.Items, items ?? [])
+            .Add(static p => p.DayMark, static day => Marks.GetValueOrDefault(day))
+            .Add(static p => p.TimeProvider, new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero) })
+            .Add(static p => p.Culture, CultureInfo.InvariantCulture));
 }

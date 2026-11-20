@@ -11,6 +11,7 @@ The calendar component. It fills the height of its parent, and other attributes 
 | `DayCount` | `int` | `4` | Days of `Days` |
 | `FirstDayOfWeek` | `DayOfWeek` | `Sunday` | The first day of `Week`, `Month` and `Year` |
 | `Items` | `IReadOnlyList<CalendarItem>` | empty | The items to show |
+| `DayMark` | `Func<DateOnly, CalendarDayMark?>?` | `null` | Marks of days, such as days off and holidays; called for each shown day when the view renders |
 | `SlotMinutes` | `int` | `15` | The step of selecting, moving and resizing in the time grid |
 | `DefaultMinutes` | `int` | `60` | The length of a range selected by a click, and of an all-day item dropped on the time grid |
 | `HourHeight` | `int` | `48` | Pixels of an hour |
@@ -75,6 +76,7 @@ A small month to pick a date, also without `MusselCalendarView`. Other attribute
 | `Month`, `MonthChanged` | `DateOnly` | the month of `Date` | The shown month (its first day); works with `@bind-Month`. When `Month` is given, a new `Date` does not change the shown month |
 | `FirstDayOfWeek` | `DayOfWeek` | `Sunday` | The first day of the week |
 | `Highlight` | `CalendarRange?` | `null` | Days to mark, such as the range of the calendar view |
+| `DayMark` | `Func<DateOnly, CalendarDayMark?>?` | `null` | Marks of days as in the view; the label and the color of the date are used |
 | `PreviousText`, `NextText` | `string` | `Previous month`, `Next month` | Labels of the arrow buttons |
 | `Culture` | `CultureInfo?` | `null` | The month title and weekday names; the current culture when `null`, written with the Gregorian calendar |
 | `TimeProvider` | `TimeProvider?` | `null` | Today; the system clock when `null` |
@@ -94,6 +96,16 @@ The days are an ARIA grid like the date picker of the WAI-ARIA Authoring Practic
 | `ReadOnly` | The item cannot be moved or resized |
 
 Timed items of 24 hours or more are shown in the all-day lane, and timed items over midnight are split by day.  
+
+## 🏷️ CalendarDayMark
+
+| Name | Description |
+|---|---|
+| `Label` | The name of the day, such as a holiday; the tooltip of its date, which screen readers read after the date |
+| `Off` | A day off; its month cell, its column of the time grid and its cell of the all-day lane get `--mussel-calendar-off` |
+| `Color` | A CSS color of its date, with the limits of `Color` of `CalendarItem`; the usual color when `null` or outside the limits |
+
+The dates of today, of the selected day of `MusselMiniMonth` and of days outside the month keep their look; days outside the month still get `Label`. The views do not write `Label` as text; show the names of holidays as items, such as read-only all-day items.  
 
 ## 📐 CalendarRange
 
@@ -128,6 +140,7 @@ These are for the calendar only. Set them on `.mussel-calendar` or on a `class` 
 | `--mussel-calendar-line` | Grid lines |
 | `--mussel-calendar-text`, `--mussel-calendar-muted` | Text and labels |
 | `--mussel-calendar-background`, `--mussel-calendar-outside` | The background, and days outside the month |
+| `--mussel-calendar-off` | Days off of `DayMark` |
 | `--mussel-calendar-today`, `--mussel-calendar-today-text` | The date of today, the focus ring and the marks of the year view |
 | `--mussel-calendar-now` | The current time line |
 | `--mussel-calendar-event`, `--mussel-calendar-event-text` | Items without `Color` |

@@ -26,7 +26,8 @@
                     {
                         if (DayAt((week * 7) + i) is { } day)
                         {
-                            <td class="@DayClass(day)" data-date="@IsoDate(day)" tabindex="@TabIndex(day)" aria-selected="@SelectedText(day)" aria-current="@CurrentText(day)" aria-label="@day.ToString("D", FormatCulture)" @onclick="() => SelectAsync(day)"><span>@day.Day</span></td>
+                            var mark = DayMark?.Invoke(day);
+                            <td class="@DayClass(day)" data-date="@IsoDate(day)" tabindex="@TabIndex(day)" aria-selected="@SelectedText(day)" aria-current="@CurrentText(day)" aria-label="@day.ToString("D", FormatCulture)" title="@(mark?.Label)" @onclick="() => SelectAsync(day)"><span style="@DateStyle(day, mark)">@day.Day</span></td>
                         }
                         else
                         {

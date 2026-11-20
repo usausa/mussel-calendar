@@ -71,6 +71,7 @@ The `Example` project shows a calendar page with popups and the dark theme on Se
 |---|---|
 | Theme | CSS variables shared with the Mussel family (`--mussel-primary-text`, `--mussel-grid-line` and more), `--mussel-calendar-*` for the calendar, and the dark `mussel-dark` |
 | Items | `Color` of each item; timed items of one day are a dot and a time in the month view |
+| Days | `DayMark` gives each day a name for the tooltip, a shade for a day off and a color for its date |
 | Overlaps | Side by side (`Columns`) or stacked with an offset (`Stack`) |
 | Sizes | `HourHeight`, `--mussel-calendar-gutter` and `--mussel-calendar-lane-height`; month cells fit their lanes to the row height, or `MonthLanes` fixes them; `--mussel-calendar-schedule-date-width` and `--mussel-calendar-schedule-time-width` for the schedule; `--mussel-calendar-mini-day-size` for the mini month |
 | Text | `Culture`, `HourFormat`, `TimeFormat`, `MonthDayFormat`, `ScheduleDayFormat`, `AllDayText`, `MoreFormat`, `EmptyText`, `ItemCountFormat`, `TimeZoneText` and `SecondaryTimeZoneText` |
@@ -79,7 +80,7 @@ The `Example` project shows a calendar page with popups and the dark theme on Se
 
 | Category | Detail |
 |---|---|
-| **Views** | Day, week, N days, month, year and schedule, any first day of the week, hour labels of a second time zone, and a mini month that marks the shown range |
+| **Views** | Day, week, N days, month, year and schedule, any first day of the week, hour labels of a second time zone, marks of days off and holidays, and a mini month that marks the shown range |
 | **Items** | Timed and all-day items, items over several days or midnight, read-only items or a read-only view, overlaps, hidden counts in month cells, marks of days with items in the year and the current time line |
 | **Mouse and touch** | Click or drag to select a range, drag to move or resize, moving between the all-day lane and the time grid, auto scroll, Esc to cancel, and a long press to start a drag on touch |
 | **Keyboard** | Enter or Space opens an item, Alt+arrow keys move it, Alt+Shift+Up or Down change its end, and arrow keys, Home, End, Page Up and Page Down move between the days of the mini month and the year, which are ARIA grids |

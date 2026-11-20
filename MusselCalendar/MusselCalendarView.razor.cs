@@ -86,6 +86,9 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
     public IReadOnlyList<CalendarItem> Items { get; set; } = [];
 
     [Parameter]
+    public Func<DateOnly, CalendarDayMark?>? DayMark { get; set; }
+
+    [Parameter]
     public int SlotMinutes { get; set; } = 15;
 
     [Parameter]
@@ -496,25 +499,7 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
 
     private string? KeyOf(CalendarItem item) => repeatedIds.Contains(item.Id) ? null : item.Id;
 
-    private static string ColorStyle(CalendarItem item) => (item.Color is { } color) && IsSafeColor(color) ? $"--mc-color: {color};" : string.Empty;
-
-    private static bool IsSafeColor(string value)
-    {
-        if ((value.Length is 0 or > 64) || value.Contains("url(", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        foreach (var ch in value)
-        {
-            if (!Char.IsAsciiLetterOrDigit(ch) && (ch is not ('#' or '(' or ')' or ',' or '.' or '%' or ' ' or '-' or '/')))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    private static string ColorStyle(CalendarItem item) => (item.Color is { } color) && CalendarColor.IsSafe(color) ? $"--mc-color: {color};" : string.Empty;
 
     private void FindRepeatedIds()
     {
@@ -600,11 +585,21 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
 
     private string DayHeadClass(DateOnly day) => day == today ? "mc-day-head mc-today" : "mc-day-head";
 
-    private string MonthCellClass(DateOnly day)
+    private string MonthCellClass(DateOnly day, CalendarDayMark? mark)
     {
-        var css = day.Month != month.Month ? "mc-cell mc-month-cell mc-outside" : "mc-cell mc-month-cell";
+        var css = day.Month != month.Month ? "mc-cell mc-month-cell mc-outside" : OffClass("mc-cell mc-month-cell", mark);
         return day == today ? css + " mc-today" : css;
     }
+
+    private string AllDayCellClass(DateOnly day) => OffClass("mc-cell mc-allday-cell", DayMark?.Invoke(day));
+
+    private string ColumnClass(DateOnly day) => OffClass("mc-column", DayMark?.Invoke(day));
+
+    private static string OffClass(string css, CalendarDayMark? mark) => mark is { Off: true } ? css + " mc-off" : css;
+
+    private string? DateStyle(DateOnly day, CalendarDayMark? mark) => day == today ? null : CalendarColor.DateStyle(mark);
+
+    private string? MonthDateStyle(DateOnly day, CalendarDayMark? mark) => day.Month != month.Month ? null : DateStyle(day, mark);
 
     private static bool IsChip(BarSegment bar) => !bar.Item.AllDay && (CalendarLayout.DayCount(bar.Item) == 1);
 
