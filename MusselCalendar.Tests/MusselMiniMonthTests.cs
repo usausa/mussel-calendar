@@ -230,13 +230,14 @@ public sealed class MusselMiniMonthTests : BunitContext
     [Fact]
     public void TodayMovesAtMidnight()
     {
-        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 0, TimeSpan.Zero) };
+        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 30, TimeSpan.Zero) };
         var cut = Render<MusselMiniMonth>(parameters => parameters
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.TimeProvider, clock));
         Assert.Equal("12", cut.Find(".mm-today").TextContent);
+        Assert.Equal((TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1)), Assert.Single(clock.Timings));
 
-        clock.Now = clock.Now.AddMinutes(2);
+        clock.Now = clock.Now.AddSeconds(30);
         clock.Fire();
 
         cut.WaitForAssertion(() => Assert.Equal("13", cut.Find(".mm-today").TextContent));
@@ -250,9 +251,8 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.DateChanged, static _ => throw new InvalidOperationException("app")));
 
         var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnSelectDateAsync("2026-11-20")));
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.Same(Renderer.UnhandledException, ended);
+        Assert.True(Renderer.UnhandledException.IsCompleted);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
     }
 
@@ -267,9 +267,8 @@ public sealed class MusselMiniMonthTests : BunitContext
         var bridge = new MiniMonthScriptBridge(cut.Instance);
         await Assert.ThrowsAsync<OperationCanceledException>(() => cut.InvokeAsync(() => bridge.OnSelectDateAsync("2026-11-20")));
         await Assert.ThrowsAsync<JSDisconnectedException>(() => cut.InvokeAsync(() => bridge.OnFocusDateAsync("2026-12-03")));
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.NotSame(Renderer.UnhandledException, ended);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
     [Fact]
@@ -289,9 +288,8 @@ public sealed class MusselMiniMonthTests : BunitContext
         pending.SetResult();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => selected);
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.NotSame(Renderer.UnhandledException, ended);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
     [Fact]
@@ -385,9 +383,8 @@ public sealed class MusselMiniMonthTests : BunitContext
             .Add(static p => p.MonthChanged, static _ => throw new InvalidOperationException("app")));
 
         var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new MiniMonthScriptBridge(cut.Instance).OnFocusDateAsync("2026-12-03")));
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.Same(Renderer.UnhandledException, ended);
+        Assert.True(Renderer.UnhandledException.IsCompleted);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
     }
 

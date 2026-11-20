@@ -11,8 +11,6 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 {
     private const string DateFormat = "yyyy-MM-dd";
 
-    private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
-
     private readonly string titleId = $"mm-{Guid.NewGuid():N}";
 
     private ElementReference element;
@@ -99,7 +97,8 @@ public sealed partial class MusselMiniMonth : IAsyncDisposable
 
     protected override void OnInitialized()
     {
-        timer = Clock.CreateTimer(OnTick, null, TickInterval, TickInterval);
+        var second = Clock.GetLocalNow().Second;
+        timer = Clock.CreateTimer(OnTick, null, TimeSpan.FromSeconds(60 - second), TimeSpan.FromMinutes(1));
     }
 
     protected override Task OnParametersSetAsync()

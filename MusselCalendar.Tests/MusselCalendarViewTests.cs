@@ -284,7 +284,7 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
-    public async Task ShiftingAnAllDayItemKeepsItAllDay()
+    public async Task AllDayItemsStayAllDayWhenShiftedAndDoNotExtend()
     {
         var day = Thursday.ToDateTime(TimeOnly.MinValue);
         var item = new CalendarItem { Id = "a", Title = "a", Start = day, End = day.AddDays(1), AllDay = true };
@@ -417,13 +417,14 @@ public sealed class MusselCalendarViewTests : BunitContext
     [Fact]
     public void TodayMovesAtMidnight()
     {
-        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 0, TimeSpan.Zero) };
+        var clock = new ManualTimeProvider { Now = new DateTimeOffset(2026, 11, 12, 23, 59, 30, TimeSpan.Zero) };
         var cut = Render<MusselCalendarView>(parameters => parameters
             .Add(static p => p.Date, Thursday)
             .Add(static p => p.TimeProvider, clock));
         Assert.Equal("2026-11-12", cut.Find(".mc-now").ParentElement?.GetAttribute("data-date"));
+        Assert.Equal((TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1)), Assert.Single(clock.Timings));
 
-        clock.Now = clock.Now.AddMinutes(2);
+        clock.Now = clock.Now.AddSeconds(30);
         clock.Fire();
 
         cut.WaitForAssertion(() => Assert.Equal("2026-11-13", cut.Find(".mc-now").ParentElement?.GetAttribute("data-date")));
@@ -680,9 +681,8 @@ public sealed class MusselCalendarViewTests : BunitContext
             .Add(static p => p.ItemClicked, static _ => throw new InvalidOperationException("app")));
 
         var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnItemClickAsync("a", 0, 0, 0, 0)));
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.Same(Renderer.UnhandledException, ended);
+        Assert.True(Renderer.UnhandledException.IsCompleted);
         Assert.Same(thrown, await Renderer.UnhandledException.ConfigureAwait(true));
     }
 
@@ -698,9 +698,8 @@ public sealed class MusselCalendarViewTests : BunitContext
         var bridge = new CalendarScriptBridge(cut.Instance);
         await Assert.ThrowsAsync<OperationCanceledException>(() => cut.InvokeAsync(() => bridge.OnItemClickAsync("a", 0, 0, 0, 0)));
         await Assert.ThrowsAsync<JSDisconnectedException>(() => cut.InvokeAsync(() => bridge.OnDayClickAsync("2026-11-12")));
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.NotSame(Renderer.UnhandledException, ended);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
     [Fact]
@@ -737,9 +736,8 @@ public sealed class MusselCalendarViewTests : BunitContext
         pending.SetResult();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => clicked);
-        var ended = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(500, Xunit.TestContext.Current.CancellationToken)).ConfigureAwait(true);
 
-        Assert.NotSame(Renderer.UnhandledException, ended);
+        Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
     [Theory]

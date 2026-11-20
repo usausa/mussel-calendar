@@ -6,6 +6,10 @@ using static Microsoft.Playwright.Assertions;
 
 public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>, IAsyncDisposable
 {
+    private static readonly Regex TimeRange = new(@"^\d{1,2}月\d{1,2}日 \(.+\) \d{1,2}:\d{2} – \d{1,2}:\d{2}$");
+
+    private static readonly Regex OneDay = new(@"^\d{1,2}月\d{1,2}日 \(.+\)$");
+
     private SamplePage? opened;
 
     public static TheoryData<string> Modes => ["server", "wasm"];
@@ -121,6 +125,78 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         await SamplePage.TouchAsync(lunch, 600, "touchend");
 
         await Expect(sample.PopupTitle).ToHaveTextAsync("ランチ");
+    }
+
+    [Fact]
+    public async Task TheTimeGridSelectsTimesAndAnAllDayCellSelectsADay()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        await sample.ShowAsync("週");
+        var column = sample.Calendar.Locator(".mc-column").First;
+        await Expect(column).ToBeVisibleAsync();
+        var text = page.Locator(".app-popup-text");
+        var cancel = page.GetByRole(AriaRole.Button, new() { Name = "キャンセル" });
+
+        await column.ClickAsync();
+        await Expect(text).ToHaveTextAsync(TimeRange);
+        await cancel.ClickAsync();
+        await sample.Calendar.Locator(".mc-allday-cell").First.ClickAsync();
+        await Expect(text).ToHaveTextAsync(OneDay);
+        await cancel.ClickAsync();
+        await Expect(page.Locator(".app-backdrop")).ToHaveCountAsync(0);
+        var body = await sample.Calendar.Locator(".mc-body").BoundingBoxAsync() ?? throw new InvalidOperationException("The time grid is not shown.");
+        var box = await column.BoundingBoxAsync() ?? throw new InvalidOperationException("The column is not shown.");
+        var (x, y) = (box.X + (box.Width / 2), body.Y + (body.Height / 3));
+        await page.Mouse.MoveAsync(x, y);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(x, y + (box.Height / 16), new() { Steps = 5 });
+        await page.Mouse.UpAsync();
+
+        await Expect(text).ToHaveTextAsync(TimeRange);
+    }
+
+    [Fact]
+    public async Task AnItemMovedInTheTimeGridKeepsItsLength()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        await sample.ShowAsync("週");
+        var lunch = sample.Item("ランチ").First;
+        await Expect(lunch).ToBeVisibleAsync();
+        await lunch.EvaluateAsync("element => element.scrollIntoView({ block: 'center' })");
+        var start = DateTime.ParseExact(await lunch.GetAttributeAsync("data-start") ?? string.Empty, "yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        var hour = await sample.Calendar.Locator(".mc-column").First.EvaluateAsync<float>("column => column.getBoundingClientRect().height / 24");
+        var box = await lunch.BoundingBoxAsync() ?? throw new InvalidOperationException("The item is not shown.");
+        var (x, y) = (box.X + (box.Width / 2), box.Y + (box.Height / 2));
+
+        await page.Mouse.MoveAsync(x, y);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(x, y + hour, new() { Steps = 5 });
+        await page.Mouse.UpAsync();
+
+        await Expect(lunch).ToHaveAttributeAsync("data-start", start.AddHours(1).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture));
+        await Expect(lunch).ToHaveAttributeAsync("data-end", start.AddHours(2).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public async Task AnItemMovedToTheNextDayInTheMonthStartsADayLater()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        var lunch = sample.Item("ランチ").First;
+        await Expect(lunch).ToBeVisibleAsync();
+        var next = DateOnly.ParseExact(await lunch.GetAttributeAsync("data-first") ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture).AddDays(1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var item = await lunch.BoundingBoxAsync() ?? throw new InvalidOperationException("The item is not shown.");
+        var cell = await sample.Calendar.Locator($".mc-month-cell[data-date='{next}']").BoundingBoxAsync() ?? throw new InvalidOperationException("The next day is not shown.");
+        var (x, y) = (item.X + (item.Width / 2), item.Y + (item.Height / 2));
+
+        await page.Mouse.MoveAsync(x, y);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(cell.X + (cell.Width / 2), y, new() { Steps = 5 });
+        await page.Mouse.UpAsync();
+
+        await Expect(lunch).ToHaveAttributeAsync("data-first", next);
     }
 
     [Fact]

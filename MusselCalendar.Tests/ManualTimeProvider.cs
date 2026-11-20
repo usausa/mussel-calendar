@@ -4,7 +4,11 @@ internal sealed class ManualTimeProvider : TimeProvider
 {
     private readonly List<TimerCallback> callbacks = [];
 
+    private readonly List<(TimeSpan DueTime, TimeSpan Period)> timings = [];
+
     public DateTimeOffset Now { get; set; }
+
+    public IReadOnlyList<(TimeSpan DueTime, TimeSpan Period)> Timings => timings;
 
     public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
 
@@ -13,6 +17,7 @@ internal sealed class ManualTimeProvider : TimeProvider
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         callbacks.Add(callback);
+        timings.Add((dueTime, period));
         return new ManualTimer();
     }
 
