@@ -12,7 +12,10 @@ internal sealed class CalendarScriptBridge(MusselCalendarView view)
     public Task OnItemClickAsync(string id, double left, double top, double width, double height) => RunAsync(() => view.OnItemClickAsync(id, left, top, width, height));
 
     [JSInvokable]
-    public Task OnMoveAsync(string id, string start, string until, bool allDay) => RunAsync(() => view.OnMoveAsync(id, start, until, allDay));
+    public Task OnMoveAsync(string id, string start, string? until, bool allDay) => RunAsync(() => view.OnMoveAsync(id, start, until, allDay));
+
+    [JSInvokable]
+    public Task OnResizeAsync(string id, string until) => RunAsync(() => view.OnResizeAsync(id, until));
 
     [JSInvokable]
     public Task OnShiftAsync(string id, int days, int minutes) => RunAsync(() => view.OnShiftAsync(id, days, minutes));

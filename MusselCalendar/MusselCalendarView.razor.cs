@@ -308,12 +308,21 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
         }
     }
 
-    internal async Task OnMoveAsync(string id, string start, string until, bool allDay)
+    internal async Task OnMoveAsync(string id, string start, string? until, bool allDay)
     {
         var item = Find(id);
-        if ((item is not null) && !item.ReadOnly && !ReadOnly && TryParse(start, out var begin) && TryParse(until, out var end))
+        if ((item is not null) && !item.ReadOnly && !ReadOnly && TryParse(start, out var begin) && TryEnd(item, begin, until, out var end))
         {
-            await ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, DateTime.SpecifyKind(begin, item.Start.Kind), DateTime.SpecifyKind(end, item.End.Kind), allDay)).ConfigureAwait(true);
+            await ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, DateTime.SpecifyKind(begin, item.Start.Kind), end, allDay)).ConfigureAwait(true);
+        }
+    }
+
+    internal async Task OnResizeAsync(string id, string until)
+    {
+        var item = Find(id);
+        if ((item is not null) && !item.ReadOnly && !item.AllDay && !ReadOnly && TryParse(until, out var end) && (end > item.Start))
+        {
+            await ItemChanged.InvokeAsync(new CalendarItemChangeEventArgs(item, item.Start, DateTime.SpecifyKind(end, item.End.Kind), false)).ConfigureAwait(true);
         }
     }
 
@@ -484,6 +493,18 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
         var fits = (shifted >= DateTime.MinValue.Ticks) && (shifted <= DateTime.MaxValue.Ticks);
         result = fits ? new DateTime((long)shifted, value.Kind) : default;
         return fits;
+    }
+
+    private static bool TryEnd(CalendarItem item, DateTime begin, string? until, out DateTime end)
+    {
+        if (until is null)
+        {
+            return TryShift(item.End, (Int128)begin.Ticks - item.Start.Ticks, out end);
+        }
+
+        var read = TryParse(until, out var time);
+        end = DateTime.SpecifyKind(time, item.End.Kind);
+        return read;
     }
 
     private static bool TryParseDate(string value, out DateOnly day) =>

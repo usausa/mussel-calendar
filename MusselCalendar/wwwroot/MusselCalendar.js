@@ -666,8 +666,13 @@ class Calendar {
                 if (r.shift) {
                     call = this.dotnet.invokeMethodAsync('OnShiftAsync', d.id, r.shift, 0);
                 }
+            } else if (d.kind === 'resize') {
+                if (r.end !== d.end) {
+                    call = this.dotnet.invokeMethodAsync('OnResizeAsync', d.id, format(r.end));
+                }
             } else if ((r.start !== d.start) || (r.end !== d.end) || r.allDay || r.convert) {
-                call = this.dotnet.invokeMethodAsync('OnMoveAsync', d.id, format(r.start), format(r.end), r.allDay);
+                const keepsLength = (d.kind === 'move-time') && !r.allDay;
+                call = this.dotnet.invokeMethodAsync('OnMoveAsync', d.id, format(r.start), keepsLength ? null : format(r.end), r.allDay);
             }
         }
         if (call) {

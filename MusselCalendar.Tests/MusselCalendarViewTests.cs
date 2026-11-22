@@ -344,6 +344,43 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
+    public async Task AMoveInTheTimeGridKeepsTheLengthToTheTick()
+    {
+        var item = Item("a", 9, 10);
+        item.Start = item.Start.AddSeconds(30);
+        item.End = item.End.AddSeconds(45).AddTicks(5);
+        CalendarItemChangeEventArgs? changed = null;
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { item })
+            .Add(static p => p.ItemChanged, e => changed = e));
+
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnMoveAsync("a", "2026-11-13T12:00:00", null, false));
+
+        var start = new DateTime(2026, 11, 13, 12, 0, 0);
+        Assert.Equal((start, start + (item.End - item.Start), false), (changed?.Start, changed?.End, changed?.AllDay));
+    }
+
+    [Fact]
+    public async Task AResizeKeepsTheStartToTheTick()
+    {
+        var item = Item("a", 9, 10);
+        item.Start = item.Start.AddSeconds(30).AddTicks(5);
+        item.End = DateTime.SpecifyKind(item.End, DateTimeKind.Local);
+        var changes = new List<CalendarItemChangeEventArgs>();
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, new[] { item })
+            .Add(static p => p.ItemChanged, changes.Add));
+
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnResizeAsync("a", "2026-11-12T10:30:00"));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnResizeAsync("a", "2026-11-12T09:00:00"));
+
+        var changed = Assert.Single(changes);
+        Assert.Equal((item.Start, new DateTime(2026, 11, 12, 10, 30, 0), DateTimeKind.Local, false), (changed.Start, changed.End, changed.End.Kind, changed.AllDay));
+    }
+
+    [Fact]
     public async Task ShiftAndExtendKeepTheOtherEdge()
     {
         var item = Item("a", 9, 10);
@@ -375,6 +412,7 @@ public sealed class MusselCalendarViewTests : BunitContext
 
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnShiftAsync("a", 1, 0));
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnExtendAsync("a", 15));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnResizeAsync("a", "2026-11-14T12:00:00"));
 
         var changed = Assert.Single(changes);
         Assert.Equal((day.AddDays(1), day.AddDays(2), true), (changed.Start, changed.End, changed.AllDay));
@@ -393,6 +431,7 @@ public sealed class MusselCalendarViewTests : BunitContext
 
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnMoveAsync("a", "2026-11-13T12:00:00", "2026-11-13T13:00:00", false));
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnShiftAsync("a", 1, 0));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnResizeAsync("a", "2026-11-13T11:00:00"));
 
         Assert.False(raised);
     }
@@ -899,6 +938,7 @@ public sealed class MusselCalendarViewTests : BunitContext
 
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnSelectAsync("1-01-01T10:00:00", "1-01-01T11:00:00", false, 0, 0, 0, 0));
         await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnMoveAsync("a", "2026-11-13T12:00:00", "2026-11-13T25:00:00", false));
+        await cut.InvokeAsync(() => new CalendarScriptBridge(cut.Instance).OnResizeAsync("a", "2026-11-13T25:00:00"));
 
         Assert.Empty(raised);
         Assert.False(Renderer.UnhandledException.IsCompleted);

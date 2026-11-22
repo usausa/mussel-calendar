@@ -180,6 +180,30 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Fact]
+    public async Task AnItemResizedInTheTimeGridKeepsItsStart()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        await sample.ShowAsync("週");
+        var lunch = sample.Calendar.Locator(".mc-event", new() { HasText = "ランチ" }).First;
+        await Expect(lunch).ToBeVisibleAsync();
+        await lunch.EvaluateAsync("element => element.scrollIntoView({ block: 'center' })");
+        var start = await lunch.GetAttributeAsync("data-start") ?? string.Empty;
+        var end = DateTime.ParseExact(await lunch.GetAttributeAsync("data-end") ?? string.Empty, "yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        var hour = await sample.Calendar.Locator(".mc-column").First.EvaluateAsync<float>("column => column.getBoundingClientRect().height / 24");
+        var handle = await lunch.Locator(".mc-resize").BoundingBoxAsync() ?? throw new InvalidOperationException("The handle is not shown.");
+        var (x, y) = (handle.X + (handle.Width / 2), handle.Y + (handle.Height / 2));
+
+        await page.Mouse.MoveAsync(x, y);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(x, y + hour, new() { Steps = 5 });
+        await page.Mouse.UpAsync();
+
+        await Expect(lunch).ToHaveAttributeAsync("data-end", end.AddHours(1).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture));
+        await Expect(lunch).ToHaveAttributeAsync("data-start", start);
+    }
+
+    [Fact]
     public async Task AnItemMovedToTheNextDayInTheMonthStartsADayLater()
     {
         var sample = await OpenAsync("server");
@@ -235,6 +259,44 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
             """);
 
         Assert.Equal([colors[4], colors[5], colors[4], "rgb(18, 52, 86)"], colors[..4]);
+    }
+
+    [Fact]
+    public async Task ItemsJustBelowTheLightnessOfDarkTextHaveWhiteText()
+    {
+        var sample = await OpenAsync("server");
+
+        var colors = await sample.Page.EvaluateAsync<string[]>(
+            """
+            () => {
+                const host = document.createElement('div');
+                host.innerHTML = '<div class="mussel-calendar"><div class="mc-event" style="--mc-color: #00c0ed"></div><div class="mc-bar" style="--mc-color: #00c6c9"></div></div>'
+                    + '<span style="color: oklch(1 0 0)"></span>';
+                document.body.appendChild(host);
+                return [...host.querySelectorAll('.mc-event, .mc-bar, span')].map((x) => getComputedStyle(x).color);
+            }
+            """);
+
+        Assert.Equal([colors[2], colors[2]], colors[..2]);
+    }
+
+    [Fact]
+    public async Task ATextColorOfItemsAboveTheViewDoesNotReachIt()
+    {
+        var sample = await OpenAsync("server");
+
+        var colors = await sample.Page.EvaluateAsync<string[]>(
+            """
+            () => {
+                const host = document.createElement('div');
+                host.innerHTML = '<div style="--mussel-calendar-event-text: #123456"><div class="mussel-calendar"><div class="mc-event" style="--mc-color: #f6bf26"></div><div class="mc-event"></div></div></div>'
+                    + '<span style="color: oklch(0.38 0 0)"></span><span style="color: oklch(1 0 0)"></span>';
+                document.body.appendChild(host);
+                return [...host.querySelectorAll('.mc-event, span')].map((x) => getComputedStyle(x).color);
+            }
+            """);
+
+        Assert.Equal([colors[2], colors[3]], colors[..2]);
     }
 
     [Fact]

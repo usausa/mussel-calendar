@@ -40,7 +40,7 @@ The view does not convert time zones: give `SecondaryOffset` for the shown range
 |---|---|---|
 | `RangeSelected` | `CalendarSelectEventArgs` | A click or a drag on empty space, with `Start`, `End`, `AllDay` and `Anchor` |
 | `ItemClicked` | `CalendarItemEventArgs` | A click, a tap, Enter or Space on an item, with `Item` and `Anchor` |
-| `ItemChanged` | `CalendarItemChangeEventArgs` | A move or a resize, with `Item` and the new `Start`, `End` and `AllDay` |
+| `ItemChanged` | `CalendarItemChangeEventArgs` | A move or a resize, with `Item` and the new `Start`, `End` and `AllDay`; a move in the time grid keeps the length and a resize keeps `Start`, to the tick |
 | `MoreClicked` | `CalendarMoreEventArgs` | The hidden items of a month cell, with `Day`, every item of the day in `Items`, and `Anchor` |
 | `DayClicked` | `DateOnly` | The date of a day header, a month cell, a schedule day or a day of the year view |
 
@@ -102,7 +102,7 @@ Timed items of 24 hours or more are shown in the all-day lane, and timed items o
 | Name | Description |
 |---|---|
 | `Label` | The name of the day, such as a holiday; the tooltip of its date, which screen readers read after the date |
-| `Off` | A day off; its month cell, its column of the time grid and its cell of the all-day lane get `--mussel-calendar-off` |
+| `Off` | A day off; its month cell, unless outside the month, its column of the time grid and its cell of the all-day lane get `--mussel-calendar-off` |
 | `Color` | A CSS color of its date, with the limits of `Color` of `CalendarItem`; the usual color when `null` or outside the limits |
 
 The dates of today, of the selected day of `MusselMiniMonth` and of days outside the month keep their look; days outside the month still get `Label`. The views do not write `Label` as text; show the names of holidays as items, such as read-only all-day items.  
@@ -144,7 +144,7 @@ These are for the calendar only. Set them on `.mussel-calendar` or on a `class` 
 | `--mussel-calendar-today`, `--mussel-calendar-today-text` | The date of today, the focus ring and the marks of the year view |
 | `--mussel-calendar-now` | The current time line |
 | `--mussel-calendar-event` | Items without `Color` |
-| `--mussel-calendar-event-text` | The text of items; unset, white or dark gray by the lightness of the color of each item |
+| `--mussel-calendar-event-text` | The text of items drawn on their color, that is bars and items of the time grid; unset, white or dark gray by the lightness of the color of each item, which does not count its transparency, so set this for translucent colors |
 | `--mussel-calendar-hover` | Dates, chips, hidden counts, schedule items and days of the year view under the pointer |
 | `--mussel-calendar-range`, `--mussel-calendar-range-border` | The range while selecting |
 | `--mussel-calendar-gutter` | The width of the hour labels; twice with `SecondaryOffset` |

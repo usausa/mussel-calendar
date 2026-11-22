@@ -9,6 +9,7 @@
     --mussel-calendar-today-text: #ffffff;
     --mussel-calendar-now: #ea4335;
     --mussel-calendar-event: #039be5;
+    --mussel-calendar-event-text: initial;
     --mussel-calendar-hover: rgba(60, 64, 67, 0.08);
     --mussel-calendar-range: rgba(26, 115, 232, 0.16);
     --mussel-calendar-range-border: rgba(26, 115, 232, 0.6);
@@ -258,10 +259,10 @@
     cursor: pointer;
 }
 
-@supports (color: oklch(from red clamp(0.38, (0.75 - l) * 1000, 1) 0 0 / 1)) {
+@supports (color: oklch(from red clamp(0.38, (0.75 - l) * infinity, 1) 0 0 / 1)) {
     .mussel-calendar .mc-bar,
     .mussel-calendar .mc-event {
-        color: var(--mussel-calendar-event-text, oklch(from var(--mc-color, var(--mussel-calendar-event)) clamp(0.38, (0.75 - l) * 1000, 1) 0 0 / 1));
+        color: var(--mussel-calendar-event-text, oklch(from var(--mc-color, var(--mussel-calendar-event)) clamp(0.38, (0.75 - l) * infinity, 1) 0 0 / 1));
     }
 }
 
