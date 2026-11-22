@@ -40,7 +40,7 @@ The view does not convert time zones: give `SecondaryOffset` for the shown range
 |---|---|---|
 | `RangeSelected` | `CalendarSelectEventArgs` | A click or a drag on empty space, with `Start`, `End`, `AllDay` and `Anchor` |
 | `ItemClicked` | `CalendarItemEventArgs` | A click, a tap, Enter or Space on an item, with `Item` and `Anchor` |
-| `ItemChanged` | `CalendarItemChangeEventArgs` | A move or a resize, with `Item` and the new `Start`, `End` and `AllDay`; a move in the time grid keeps the length and a resize keeps `Start`, to the tick |
+| `ItemChanged` | `CalendarItemChangeEventArgs` | A move or a resize, with `Item` and the new `Start`, `End` and `AllDay`; a move in the time grid, or of a timed item from the all-day lane to it, keeps the length and a resize keeps `Start`, to the tick |
 | `MoreClicked` | `CalendarMoreEventArgs` | The hidden items of a month cell, with `Day`, every item of the day in `Items`, and `Anchor` |
 | `DayClicked` | `DateOnly` | The date of a day header, a month cell, a schedule day or a day of the year view |
 
@@ -60,10 +60,11 @@ An exception from a handler reaches `ErrorBoundary`, as with an ordinary Blazor 
 | Cancel a drag | Esc | | |
 
 On touch, a long press is 400 ms, and one released without moving acts as a tap.  
+While a move or a change of the end waits for its answer, the calendar takes no other drag or key move; when no answer comes within 60 seconds, as when an Interactive Server connection is lost, it takes them again.  
 The schedule and the year views do not select or move: items of the schedule open by a click, a tap, Enter or Space, and a day of the year view raises `DayClicked`.  
 Each month of the year view is an ARIA grid named by its title. Tab stops at one day of the year; arrow keys move by a day (Left or Right) or a week (Up or Down), Home and End to the first and last day of the week, Page Up and Page Down by a month within the year, and Enter or Space raises `DayClicked`. The date of today has `aria-current="date"` in every view.  
 
-A timed item dropped on the all-day lane becomes an all-day item of that day, and an all-day item dropped on the time grid gets `DefaultMinutes`.  
+A timed item dropped on the all-day lane becomes an all-day item of that day, and an all-day item dropped on the time grid gets `DefaultMinutes`; a timed item of 24 hours or more dropped from the all-day lane on the time grid keeps its length.  
 A drag near the top or bottom of the time grid scrolls it; on touch, only after the finger moves. On touch, moving before the long press scrolls the page.  
 
 ## 📅 MusselMiniMonth

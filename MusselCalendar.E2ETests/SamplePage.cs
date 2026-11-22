@@ -71,6 +71,24 @@ public sealed class SamplePage(IBrowserContext context, IPage page) : IAsyncDisp
             """,
             names);
 
+    public Task HoldCallsAsync(params string[] names) =>
+        page.EvaluateAsync(
+            """
+            names => {
+                const proto = DotNet.DotNetObject.prototype;
+                const invoke = proto.invokeMethodAsync;
+                window.held = [];
+                proto.invokeMethodAsync = function (name, ...args) {
+                    if (names.includes(name)) {
+                        window.held.push(name);
+                        return new Promise(() => { });
+                    }
+                    return invoke.call(this, name, ...args);
+                };
+            }
+            """,
+            names);
+
     public async Task<int> UnhandledRejectionsAsync(int calls)
     {
         await page.WaitForFunctionAsync("calls => window.rejected.length >= calls", calls).ConfigureAwait(true);

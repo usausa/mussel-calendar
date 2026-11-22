@@ -73,9 +73,14 @@ public sealed partial class AppFixture : IAsyncLifetime
         }
     }
 
-    public async Task<SamplePage> OpenAsync(string path, string mode, bool touch = false)
+    public async Task<SamplePage> OpenAsync(string path, string mode, bool touch = false, bool clock = false)
     {
         var page = await OpenBlankAsync(touch).ConfigureAwait(false);
+        if (clock)
+        {
+            await page.Page.Clock.InstallAsync().ConfigureAwait(false);
+        }
+
         await page.Page.GotoAsync($"{BaseAddress}render-mode/{mode}?redirect={Uri.EscapeDataString($"/{path}")}").ConfigureAwait(false);
         await page.WaitForCalendarAsync().ConfigureAwait(false);
         return page;

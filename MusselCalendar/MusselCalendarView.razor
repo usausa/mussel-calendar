@@ -156,7 +156,7 @@
                 }
                 @foreach (var bar in allDayBars)
                 {
-                    <div class="@BarClass(bar)" @key="KeyOf(bar.Item)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
+                    <div class="@BarClass(bar)" @key="KeyOf(bar.Item)" data-id="@bar.Item.Id" data-first="@IsoDate(CalendarLayout.FirstDay(bar.Item))" data-days="@CalendarLayout.DayCount(bar.Item)" data-start="@TimedStart(bar.Item)" data-end="@TimedEnd(bar.Item)" data-read-only="@ReadOnlyText(bar.Item)" tabindex="0" role="button" aria-label="@ItemLabel(bar.Item)" style="@BarStyle(bar, 2, 1)">
                         <span class="mc-bar-title" title="@bar.Item.Title">@bar.Item.Title</span>
                     </div>
                 }

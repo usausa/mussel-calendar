@@ -296,6 +296,27 @@ public sealed class MusselCalendarViewTests : BunitContext
     }
 
     [Fact]
+    public void BarsOfTimedItemsInTheAllDayLaneCarryTheirTimes()
+    {
+        CalendarItem[] items =
+        [
+            new() { Id = "long", Title = "long", Start = Thursday.ToDateTime(new TimeOnly(9, 0)), End = Thursday.AddDays(1).ToDateTime(new TimeOnly(9, 0)) },
+            new() { Id = "allDay", Title = "allDay", Start = Thursday.ToDateTime(TimeOnly.MinValue), End = Thursday.AddDays(1).ToDateTime(TimeOnly.MinValue), AllDay = true }
+        ];
+
+        var cut = Render<MusselCalendarView>(parameters => parameters
+            .Add(static p => p.Date, Thursday)
+            .Add(static p => p.Items, items));
+        var timed = cut.Find(".mc-bar[data-id='long']");
+        var allDay = cut.Find(".mc-bar[data-id='allDay']");
+
+        Assert.Equal("2026-11-12T09:00:00", timed.GetAttribute("data-start"));
+        Assert.Equal("2026-11-13T09:00:00", timed.GetAttribute("data-end"));
+        Assert.Null(allDay.GetAttribute("data-start"));
+        Assert.Null(allDay.GetAttribute("data-end"));
+    }
+
+    [Fact]
     public void ShortItemUsesOneLine()
     {
         CalendarItem[] items = [Item("a", 9, 9.25)];

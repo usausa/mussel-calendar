@@ -204,6 +204,31 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
     }
 
     [Fact]
+    public async Task ATimedItemDroppedFromTheAllDayLaneOnTheTimeGridKeepsItsLength()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        await sample.ShowAsync("週");
+        var training = sample.Calendar.Locator(".mc-allday .mc-bar", new() { HasText = "研修" }).First;
+        await Expect(training).ToBeVisibleAsync();
+        var thursday = sample.Calendar.Locator(".mc-column").Nth(4);
+        var date = DateOnly.ParseExact(await thursday.GetAttributeAsync("data-date") ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var hour = await thursday.EvaluateAsync<float>("column => column.getBoundingClientRect().height / 24");
+        await thursday.EvaluateAsync("(column, hour) => { column.closest('.mc-body').scrollTop = 8 * hour; }", hour);
+        var bar = await training.BoundingBoxAsync() ?? throw new InvalidOperationException("The item is not shown.");
+        var column = await thursday.BoundingBoxAsync() ?? throw new InvalidOperationException("The column is not shown.");
+        var (x, y) = (column.X + (column.Width / 2), column.Y + (10.1f * hour));
+
+        await page.Mouse.MoveAsync(bar.X + 10, bar.Y + (bar.Height / 2));
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(x, y, new() { Steps = 10 });
+        await page.Mouse.UpAsync();
+
+        await Expect(training).ToHaveAttributeAsync("data-start", date.ToString("yyyy-MM-dd'T10:00:00'", CultureInfo.InvariantCulture));
+        await Expect(training).ToHaveAttributeAsync("data-end", date.AddDays(1).ToString("yyyy-MM-dd'T10:00:00'", CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public async Task AnItemMovedToTheNextDayInTheMonthStartsADayLater()
     {
         var sample = await OpenAsync("server");
@@ -366,6 +391,66 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         Assert.Equal(0, await sample.UnhandledRejectionsAsync(4));
     }
 
+    [Fact]
+    public async Task KeysOnAnItemWhoseMoveIsUnansweredDoNotReachTheBrowser()
+    {
+        var sample = await OpenAsync("server");
+        var page = sample.Page;
+        await sample.ShowAsync("月");
+        var lunch = sample.Item("ランチ").First;
+        await Expect(lunch).ToBeVisibleAsync();
+        await sample.HoldCallsAsync("OnShiftAsync", "OnItemClickAsync");
+        await page.EvaluateAsync("() => { window.keys = []; window.addEventListener('keydown', (e) => { if (e.key !== 'Alt') { window.keys.push(e.defaultPrevented); } }); }");
+
+        await lunch.PressAsync("Alt+ArrowLeft");
+        await lunch.PressAsync("Alt+ArrowLeft");
+        await lunch.PressAsync("Space");
+        var keys = await page.EvaluateAsync<bool[]>("() => window.keys");
+        var held = await page.EvaluateAsync<string[]>("() => window.held");
+
+        Assert.Equal([true, true, true], keys);
+        Assert.Equal(["OnShiftAsync"], held);
+    }
+
+    [Fact]
+    public async Task AMoveWithoutAnAnswerStopsWaitingAfterTheLimit()
+    {
+        var sample = await OpenAsync("wasm", clock: true);
+        var page = sample.Page;
+        await sample.ShowAsync("月");
+        var lunch = sample.Item("ランチ").First;
+        await Expect(lunch).ToBeVisibleAsync();
+        await sample.HoldCallsAsync("OnShiftAsync");
+
+        await lunch.PressAsync("Alt+ArrowLeft");
+        await lunch.PressAsync("Alt+ArrowLeft");
+        var waiting = await page.EvaluateAsync<int>("() => window.held.length");
+        await page.Clock.FastForwardAsync(60_000);
+        await lunch.PressAsync("Alt+ArrowLeft");
+        var after = await page.EvaluateAsync<int>("() => window.held.length");
+
+        Assert.Equal(1, waiting);
+        Assert.Equal(2, after);
+    }
+
+    [Fact]
+    public async Task MonthLanesWithoutAnAnswerAreSentAgainAfterTheLimit()
+    {
+        var sample = await OpenAsync("wasm", clock: true);
+        var page = sample.Page;
+        await sample.ShowAsync("月");
+        await Expect(sample.Item("ランチ").First).ToBeVisibleAsync();
+        await sample.HoldCallsAsync("OnMonthLanes");
+
+        await page.SetViewportSizeAsync(1280, 600);
+        await page.WaitForFunctionAsync("() => window.held.length > 0");
+        var sent = await page.EvaluateAsync<int>("() => window.held.length");
+        await page.Clock.FastForwardAsync(60_000);
+        var again = await page.EvaluateAsync<int>("() => window.held.length");
+
+        Assert.True(again > sent);
+    }
+
     [Theory]
     [MemberData(nameof(Modes))]
     public async Task TheRootsLoseTheirMarkWhenTheirScriptsAreDisposed(string mode)
@@ -467,6 +552,6 @@ public sealed class CalendarE2ETests(AppFixture app) : IClassFixture<AppFixture>
         Assert.Equal(app.BaseAddress, sample.Page.Url);
     }
 
-    private async Task<SamplePage> OpenAsync(string mode, bool touch = false) =>
-        opened = await app.OpenAsync(string.Empty, mode, touch).ConfigureAwait(true);
+    private async Task<SamplePage> OpenAsync(string mode, bool touch = false, bool clock = false) =>
+        opened = await app.OpenAsync(string.Empty, mode, touch, clock).ConfigureAwait(true);
 }

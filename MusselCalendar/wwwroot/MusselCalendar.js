@@ -4,7 +4,12 @@ const LONG_PRESS_DELAY = 400;
 const EDGE_ZONE = 40;
 const EDGE_SPEED = 16;
 const SCROLL_MARGIN = 8;
+const ANSWER_LIMIT = 60000;
 
+const limited = (call, late) => {
+    const timer = setTimeout(late, ANSWER_LIMIT);
+    return call.finally(() => clearTimeout(timer));
+};
 const pad = (n) => String(n).padStart(2, '0');
 const year = (d) => String(d.getUTCFullYear()).padStart(4, '0');
 const utc = (fullYear, month, day) => {
@@ -147,7 +152,12 @@ class Calendar {
         const lanes = Math.max(1, Math.floor((week.clientHeight - tracks[0] - gap) / (tracks[1] + gap)));
         if (lanes !== this.lanes) {
             this.lanes = lanes;
-            this.dotnet.invokeMethodAsync('OnMonthLanes', lanes).catch(() => {
+            limited(this.dotnet.invokeMethodAsync('OnMonthLanes', lanes), () => {
+                if (this.lanes === lanes) {
+                    this.lanes = 0;
+                    this.fit();
+                }
+            }).catch(() => {
                 this.lanes = 0;
             });
         }
@@ -242,19 +252,22 @@ class Calendar {
             return;
         }
         const item = this.itemOf(e.target);
-        if (!item || this.drag || this.settling) {
+        if (!item) {
             return;
         }
+        const busy = this.drag || this.settling;
         const id = item.dataset.id;
         if ((e.key === 'Enter') || (e.key === ' ')) {
             e.preventDefault();
-            this.dotnet.invokeMethodAsync('OnItemClickAsync', id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
+            if (!busy) {
+                this.dotnet.invokeMethodAsync('OnItemClickAsync', id, ...anchorOf(item.getBoundingClientRect())).catch(() => { });
+            }
             return;
         }
         if (!e.altKey) {
             return;
         }
-        if (item.dataset.readOnly === 'true') {
+        if (busy || (item.dataset.readOnly === 'true')) {
             if (ARROW_KEYS.includes(e.key)) {
                 e.preventDefault();
             }
@@ -550,9 +563,10 @@ class Calendar {
             if (zone === 'time') {
                 const at = this.timeAt(d.x, d.y, Math.floor);
                 if (at) {
-                    d.result = { start: at.minutes, end: at.minutes + this.defaultMinutes, allDay: false, convert: true };
+                    const length = d.start === null ? this.defaultMinutes : d.end - d.start;
+                    d.result = { start: at.minutes, end: at.minutes + length, allDay: false, convert: true };
                     const base = dayStart(at.column.element.dataset.date);
-                    this.showTime(at.column, at.minutes - base, Math.min(at.minutes - base + this.defaultMinutes, 1440), d.item);
+                    this.showTime(at.column, at.minutes - base, Math.min(at.minutes - base + length, 1440), d.item);
                 }
                 return;
             }
@@ -671,7 +685,7 @@ class Calendar {
                     call = this.dotnet.invokeMethodAsync('OnResizeAsync', d.id, format(r.end));
                 }
             } else if ((r.start !== d.start) || (r.end !== d.end) || r.allDay || r.convert) {
-                const keepsLength = (d.kind === 'move-time') && !r.allDay;
+                const keepsLength = (d.start !== null) && !r.allDay;
                 call = this.dotnet.invokeMethodAsync('OnMoveAsync', d.id, format(r.start), keepsLength ? null : format(r.end), r.allDay);
             }
         }
@@ -701,7 +715,7 @@ class Calendar {
         };
         state.observer = new MutationObserver(end);
         state.observer.observe(this.root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'data-start', 'data-end'] });
-        call.then(end, end);
+        limited(call, end).then(end, end);
     }
 
     restore() {

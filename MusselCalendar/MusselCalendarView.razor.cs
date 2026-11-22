@@ -516,6 +516,10 @@ public sealed partial class MusselCalendarView : IAsyncDisposable
 
     private static string IsoDateTime(DateTime value) => value.ToString(DateTimeFormat, CultureInfo.InvariantCulture);
 
+    private static string? TimedStart(CalendarItem item) => item.AllDay ? null : IsoDateTime(item.Start);
+
+    private static string? TimedEnd(CalendarItem item) => item.AllDay ? null : IsoDateTime(item.End);
+
     private string ReadOnlyText(CalendarItem item) => ReadOnly || item.ReadOnly ? "true" : "false";
 
     private string? KeyOf(CalendarItem item) => repeatedIds.Contains(item.Id) ? null : item.Id;
