@@ -21,7 +21,7 @@ The calendar component. It fills the height of its parent, and other attributes 
 | `ReadOnly` | `bool` | `false` | Stops selecting ranges, and moving and resizing items |
 | `AllDayText` | `string` | `All day` | The label of the all-day lane, and the time of items that cover the whole day in the schedule |
 | `MoreFormat` | `string` | `+{0}` | The text of the hidden items of a month cell |
-| `EmptyText` | `string` | `No events` | The text of a schedule without items |
+| `EmptyText` | `string` | `No events` | The text of a schedule without items. The schedule lists only the days with items, out of the 30 days from `Date` |
 | `ItemCountFormat` | `string` | `Events: {0}` | The count of items added to the label of a day in the year view |
 | `HourFormat`, `TimeFormat` | `string` | `H:mm` | Formats of the hour labels and of the times of items, such as `h tt` and `h:mm tt`. A single custom specifier needs `%` (`%H`), because one letter alone is a standard format |
 | `MonthDayFormat` | `string?` | `null` | The format of the first day of a month in the month view, such as `MMM d`; unset writes `M/d` or `d/M` in the order of the culture, with the date separator of the culture in place of `/` (`1.12` in de-DE) |
@@ -90,10 +90,10 @@ The days are an ARIA grid like the date picker of the WAI-ARIA Authoring Practic
 | Name | Description |
 |---|---|
 | `Id` | Required and unique in `Items`. Items that share an `Id` are still drawn, and events name the first of them |
-| `Title` | Required |
+| `Title` | Required. The title, and the time of an item in the schedule, are also shown as tooltips |
 | `Start`, `End` | Local times; `End` is not included, so an all-day item of one day ends at 0:00 of the next day |
 | `AllDay` | Shows the item in the all-day lane |
-| `Color` | A CSS color of up to 64 characters; `--mussel-calendar-event` when `null`, longer, with `url(`, or with characters other than letters, digits, space and `# ( ) , . % - /`. A value of these characters that is not a color makes the background transparent |
+| `Color` | A CSS color of up to 64 characters; `--mussel-calendar-event` when `null`, empty, longer, with `url(`, or with characters other than ASCII letters and digits, space and `# ( ) , . % - /`. A value of these characters that is not a color makes the background transparent |
 | `ReadOnly` | The item cannot be moved or resized |
 
 Timed items of 24 hours or more are shown in the all-day lane, and timed items over midnight are split by day.  
@@ -145,7 +145,7 @@ These are for the calendar only. Set them on `.mussel-calendar` or on a `class` 
 | `--mussel-calendar-today`, `--mussel-calendar-today-text` | The date of today, the focus ring and the marks of the year view |
 | `--mussel-calendar-now` | The current time line |
 | `--mussel-calendar-event` | Items without `Color` |
-| `--mussel-calendar-event-text` | The text of items drawn on their color, that is bars and items of the time grid; unset, white or dark gray by the lightness of the color of each item, which does not count its transparency, so set this for translucent colors |
+| `--mussel-calendar-event-text` | The text of items drawn on their color, that is bars and items of the time grid; unset, white when the OKLCH lightness of the color of each item is below 0.75 and dark gray (`oklch(0.38 0 0)`) otherwise, or white in browsers without relative colors. The lightness does not count transparency, so set this for translucent colors |
 | `--mussel-calendar-hover` | Dates, chips, hidden counts, schedule items and days of the year view under the pointer |
 | `--mussel-calendar-range`, `--mussel-calendar-range-border` | The range while selecting |
 | `--mussel-calendar-gutter` | The width of the hour labels; twice with `SecondaryOffset` |
