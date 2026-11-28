@@ -33,6 +33,19 @@ public sealed partial class StyleSheetTests
         Assert.Contains(selectors, static x => x.Contains(".mussel-dark", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void TheDarkThemeHasDarkScrollbars()
+    {
+        var css = File.ReadAllText(Path.Combine(TestPaths.Root, "MusselCalendar", "wwwroot", "MusselCalendar.css"));
+
+        var selectors = Rule().Matches(css)
+            .Where(static x => x.Groups["body"].Value.Contains("color-scheme: dark;", StringComparison.Ordinal))
+            .Select(static x => x.Groups["selector"].Value.Trim())
+            .ToList();
+
+        Assert.Contains(selectors, static x => x.Contains(":where(.mussel-calendar.mussel-dark)", StringComparison.Ordinal));
+    }
+
     [GeneratedRegex(@"(?<selector>[^{}]+)\{(?<body>[^{}]*)\}")]
     private static partial Regex Rule();
 
